@@ -36,8 +36,54 @@ use beads cli to create these issues. assume beads repository is initialised.
 1. beads dep => to show if any issue blocks implementation of this issue.
 
 
+## package 
+1. gh workflow for building for mac + linux arm + linux amd64 
+2. with version via git tags?
 
+
+## beads update 
+- allow for updating the --data -> see the flag during creation of the beads create -- same flags for title and data in beads update.
+
+
+
+
+## beads show
+beads show bd-042
+ID:       bd-042
+Title:    Show status circles for main issue and dependencies in dep show command
+Status:   open
+Kind:     feature
+Priority: 2
+
+should show all the metadta / data in kv format. 
+
+
+
+--------------------
 -- yet to create 
+--------------------
+
+
+create issue - with feature + dependency using beads cli. only create i9ssue. do not implement this yet. 
+
+
+
+for example 
+
+beads dep show bd-041
+Dependencies for bd-041 - Filter closed dependencies from blocker display
+
+Blockers (Issues this depends on):
+  ↳ bd-025 [closed] p2 - Implement beads dep command to show issue dependencies and blockers
+
+
+this should also show the open /closed status of bd-041 
+
+
+
+## beads dep show 
+- close and open status to be shown consistently in the app via open and close circle.
+
 
 
 ## beads ready command 
@@ -45,14 +91,9 @@ use beads cli to create these issues. assume beads repository is initialised.
 
 
 ## beads list - 
-1. list based on task filters  - task status or task type 
-2. show total count of issues 
-
-
-## package 
-1. gh workflow for building for mac + linux arm + linux amd64 
-2. with version via git tags?
+1. show total count of issues 
+2. do not show `[open]` written.  we already have the square icon. change that to open circle.
 
 
 ## labels - structured metadata for filtering querying
-- read the docs/work/2025-10-31-labels.md and crate sub issues for implementing this feature.
+- read the docs/work/2025-10-31-labels.md and crate sub issues for implementing this feature. add dependency between issues as needed. do not create cyclic dependencies.
