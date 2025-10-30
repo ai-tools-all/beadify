@@ -59,6 +59,9 @@ enum Commands {
         /// Output as JSON
         #[arg(long)]
         json: bool,
+        /// Show labels column in table view
+        #[arg(long)]
+        labels: bool,
     },
     /// Update an existing issue
     Update {
@@ -184,9 +187,10 @@ fn main() -> Result<()> {
             label,
             label_any,
             json,
+            labels,
         } => {
-            info!(command = "list", all, status = status.as_deref(), dep_graph, label = label.as_deref(), label_any = label_any.as_deref(), json);
-            commands::list::run(repo.unwrap(), all, status, dep_graph, label, label_any, json)?;
+            info!(command = "list", all, status = status.as_deref(), dep_graph, label = label.as_deref(), label_any = label_any.as_deref(), json, labels);
+            commands::list::run(repo.unwrap(), all, status, dep_graph, label, label_any, json, labels)?;
         }
         Commands::Update {
             id,

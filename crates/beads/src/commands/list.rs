@@ -33,6 +33,7 @@ pub fn run(
     label_filter: Option<String>,
     label_any_filter: Option<String>,
     json_output: bool,
+    show_labels: bool,
 ) -> Result<()> {
     let mut issues = get_all_issues(&repo)?;
     
@@ -101,40 +102,68 @@ pub fn run(
         }
     } else {
         // Table view (default)
-        println!("{:<2} {:<8} {:<10} {:<4} {:<20} {}", " ", "ID", "Kind", "Prio", "Labels", "Title");
-        println!("{}", "─".repeat(100));
-        
-        for issue in issues {
-            let indicator = status_indicator(&issue.status);
-            let priority_str = format!("p{}", issue.priority);
+        if show_labels {
+            println!("{:<2} {:<8} {:<10} {:<4} {:<20} {}", " ", "ID", "Kind", "Prio", "Labels", "Title");
+            println!("{}", "─".repeat(100));
             
-            // Get labels for this issue
-            let labels_str = match get_issue_labels(&repo, &issue.id) {
-                Ok(labels) => {
-                    let label_names: Vec<String> = labels.iter().map(|l| l.name.clone()).collect();
-                    if label_names.is_empty() {
-                        "-".to_string()
-                    } else {
-                        label_names.join(", ")
+            for issue in issues {
+                let indicator = status_indicator(&issue.status);
+                let priority_str = format!("p{}", issue.priority);
+                
+                // Get labels for this issue
+                let labels_str = match get_issue_labels(&repo, &issue.id) {
+                    Ok(labels) => {
+                        let label_names: Vec<String> = labels.iter().map(|l| l.name.clone()).collect();
+                        if label_names.is_empty() {
+                            "-".to_string()
+                        } else {
+                            label_names.join(", ")
+                        }
+                    }
+                    Err(_) => "-".to_string(),
+                };
+                
+                println!(
+                    "{} {:<8} {:<10} {:<4} {:<20} {}",
+                    indicator, issue.id, issue.kind, priority_str, labels_str, issue.title
+                );
+                
+                // Show open dependencies/blockers if any
+                if let Ok(deps) = get_open_dependencies(&repo, &issue.id) {
+                    for dep_id in deps {
+                        if let Ok(Some(dep_issue)) = get_issue(&repo, &dep_id) {
+                            let dep_priority = format!("p{}", dep_issue.priority);
+                            println!(
+                                "  {} ↳ {:<8} {:<10} {} - {}",
+                                " ", dep_id, dep_issue.kind, dep_priority, dep_issue.title
+                            );
+                        }
                     }
                 }
-                Err(_) => "-".to_string(),
-            };
+            }
+        } else {
+            println!("{:<2} {:<8} {:<10} {:<4} {}", " ", "ID", "Kind", "Prio", "Title");
+            println!("{}", "─".repeat(70));
             
-            println!(
-                "{} {:<8} {:<10} {:<4} {:<20} {}",
-                indicator, issue.id, issue.kind, priority_str, labels_str, issue.title
-            );
-            
-            // Show open dependencies/blockers if any
-            if let Ok(deps) = get_open_dependencies(&repo, &issue.id) {
-                for dep_id in deps {
-                    if let Ok(Some(dep_issue)) = get_issue(&repo, &dep_id) {
-                        let dep_priority = format!("p{}", dep_issue.priority);
-                        println!(
-                            "  {} ↳ {:<8} {:<10} {} - {}",
-                            " ", dep_id, dep_issue.kind, dep_priority, dep_issue.title
-                        );
+            for issue in issues {
+                let indicator = status_indicator(&issue.status);
+                let priority_str = format!("p{}", issue.priority);
+                
+                println!(
+                    "{} {:<8} {:<10} {:<4} {}",
+                    indicator, issue.id, issue.kind, priority_str, issue.title
+                );
+                
+                // Show open dependencies/blockers if any
+                if let Ok(deps) = get_open_dependencies(&repo, &issue.id) {
+                    for dep_id in deps {
+                        if let Ok(Some(dep_issue)) = get_issue(&repo, &dep_id) {
+                            let dep_priority = format!("p{}", dep_issue.priority);
+                            println!(
+                                "  {} ↳ {:<8} {:<10} {} - {}",
+                                " ", dep_id, dep_issue.kind, dep_priority, dep_issue.title
+                            );
+                        }
                     }
                 }
             }
