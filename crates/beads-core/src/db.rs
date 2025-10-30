@@ -333,3 +333,349 @@ pub fn get_issues_by_label(conn: &Connection, label_id: &str) -> Result<Vec<Stri
         .collect::<std::result::Result<Vec<_>, _>>()?;
     Ok(issues)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::Connection;
+
+    fn setup_test_db() -> Result<Connection> {
+        let conn = Connection::open_in_memory()?;
+        create_schema(&conn)?;
+        Ok(conn)
+    }
+
+    #[test]
+    fn test_create_and_get_label() -> Result<()> {
+        let mut conn = setup_test_db()?;
+        let tx = conn.transaction()?;
+
+        let label = Label {
+            id: "label-1".to_string(),
+            name: "backend".to_string(),
+            color: Some("#ff0000".to_string()),
+            description: Some("Backend tasks".to_string()),
+        };
+
+        create_label(&tx, &label)?;
+        tx.commit()?;
+
+        let retrieved = get_label(&conn, "label-1")?;
+        assert!(retrieved.is_some());
+        let retrieved = retrieved.unwrap();
+        assert_eq!(retrieved.name, "backend");
+        assert_eq!(retrieved.color, Some("#ff0000".to_string()));
+        assert_eq!(retrieved.description, Some("Backend tasks".to_string()));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_get_nonexistent_label() -> Result<()> {
+        let conn = setup_test_db()?;
+        let retrieved = get_label(&conn, "nonexistent")?;
+        assert!(retrieved.is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn test_get_all_labels() -> Result<()> {
+        let mut conn = setup_test_db()?;
+        let tx = conn.transaction()?;
+
+        for i in 0..3 {
+            let label = Label {
+                id: format!("label-{}", i),
+                name: format!("label-{}", i),
+                color: None,
+                description: None,
+            };
+            create_label(&tx, &label)?;
+        }
+        tx.commit()?;
+
+        let labels = get_all_labels(&conn)?;
+        assert_eq!(labels.len(), 3);
+        assert!(labels.iter().any(|l| l.name == "label-0"));
+        assert!(labels.iter().any(|l| l.name == "label-1"));
+        assert!(labels.iter().any(|l| l.name == "label-2"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_add_and_get_issue_labels() -> Result<()> {
+        let mut conn = setup_test_db()?;
+        let tx = conn.transaction()?;
+
+        // Create an issue first
+        let issue = Issue {
+            id: "issue-1".to_string(),
+            title: "Test".to_string(),
+            kind: "task".to_string(),
+            priority: 1,
+            status: "open".to_string(),
+            description: None,
+            design: None,
+            acceptance_criteria: None,
+            notes: None,
+        };
+        upsert_issue(&tx, &issue)?;
+
+        let label = Label {
+            id: "label-1".to_string(),
+            name: "backend".to_string(),
+            color: None,
+            description: None,
+        };
+        create_label(&tx, &label)?;
+        add_issue_label(&tx, "issue-1", "label-1")?;
+        tx.commit()?;
+
+        let labels = get_issue_labels(&conn, "issue-1")?;
+        assert_eq!(labels.len(), 1);
+        assert_eq!(labels[0].name, "backend");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_multiple_labels_on_issue() -> Result<()> {
+        let mut conn = setup_test_db()?;
+        let tx = conn.transaction()?;
+
+        let issue = Issue {
+            id: "issue-1".to_string(),
+            title: "Test".to_string(),
+            kind: "task".to_string(),
+            priority: 1,
+            status: "open".to_string(),
+            description: None,
+            design: None,
+            acceptance_criteria: None,
+            notes: None,
+        };
+        upsert_issue(&tx, &issue)?;
+
+        let labels = vec![
+            Label {
+                id: "label-1".to_string(),
+                name: "backend".to_string(),
+                color: None,
+                description: None,
+            },
+            Label {
+                id: "label-2".to_string(),
+                name: "urgent".to_string(),
+                color: None,
+                description: None,
+            },
+            Label {
+                id: "label-3".to_string(),
+                name: "database".to_string(),
+                color: None,
+                description: None,
+            },
+        ];
+
+        for label in labels {
+            create_label(&tx, &label)?;
+            add_issue_label(&tx, "issue-1", &label.id)?;
+        }
+        tx.commit()?;
+
+        let retrieved = get_issue_labels(&conn, "issue-1")?;
+        assert_eq!(retrieved.len(), 3);
+        assert!(retrieved.iter().any(|l| l.name == "backend"));
+        assert!(retrieved.iter().any(|l| l.name == "urgent"));
+        assert!(retrieved.iter().any(|l| l.name == "database"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_remove_issue_label() -> Result<()> {
+        let mut conn = setup_test_db()?;
+        let tx = conn.transaction()?;
+
+        let issue = Issue {
+            id: "issue-1".to_string(),
+            title: "Test".to_string(),
+            kind: "task".to_string(),
+            priority: 1,
+            status: "open".to_string(),
+            description: None,
+            design: None,
+            acceptance_criteria: None,
+            notes: None,
+        };
+        upsert_issue(&tx, &issue)?;
+
+        let label = Label {
+            id: "label-1".to_string(),
+            name: "backend".to_string(),
+            color: None,
+            description: None,
+        };
+        create_label(&tx, &label)?;
+        add_issue_label(&tx, "issue-1", "label-1")?;
+        tx.commit()?;
+
+        let mut tx2 = conn.transaction()?;
+        remove_issue_label(&mut tx2, "issue-1", "label-1")?;
+        tx2.commit()?;
+
+        let labels = get_issue_labels(&conn, "issue-1")?;
+        assert_eq!(labels.len(), 0);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_remove_nonexistent_issue_label_fails() -> Result<()> {
+        let mut conn = setup_test_db()?;
+        let mut tx = conn.transaction()?;
+
+        let result = remove_issue_label(&mut tx, "issue-1", "label-1");
+        assert!(result.is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_delete_label() -> Result<()> {
+        let mut conn = setup_test_db()?;
+        let tx = conn.transaction()?;
+
+        let label = Label {
+            id: "label-1".to_string(),
+            name: "backend".to_string(),
+            color: None,
+            description: None,
+        };
+        create_label(&tx, &label)?;
+        tx.commit()?;
+
+        let mut tx2 = conn.transaction()?;
+        delete_label(&mut tx2, "label-1")?;
+        tx2.commit()?;
+
+        let retrieved = get_label(&conn, "label-1")?;
+        assert!(retrieved.is_none());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_delete_nonexistent_label_fails() -> Result<()> {
+        let mut conn = setup_test_db()?;
+        let mut tx = conn.transaction()?;
+
+        let result = delete_label(&mut tx, "label-1");
+        assert!(result.is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_get_issues_by_label() -> Result<()> {
+        let mut conn = setup_test_db()?;
+        let tx = conn.transaction()?;
+
+        for i in 0..3 {
+            let issue = Issue {
+                id: format!("issue-{}", i),
+                title: "Test".to_string(),
+                kind: "task".to_string(),
+                priority: 1,
+                status: "open".to_string(),
+                description: None,
+                design: None,
+                acceptance_criteria: None,
+                notes: None,
+            };
+            upsert_issue(&tx, &issue)?;
+        }
+
+        let label = Label {
+            id: "label-1".to_string(),
+            name: "backend".to_string(),
+            color: None,
+            description: None,
+        };
+        create_label(&tx, &label)?;
+
+        for i in 0..3 {
+            add_issue_label(&tx, &format!("issue-{}", i), "label-1")?;
+        }
+        tx.commit()?;
+
+        let issues = get_issues_by_label(&conn, "label-1")?;
+        assert_eq!(issues.len(), 3);
+        assert!(issues.contains(&"issue-0".to_string()));
+        assert!(issues.contains(&"issue-1".to_string()));
+        assert!(issues.contains(&"issue-2".to_string()));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_label_ignore_duplicate_add() -> Result<()> {
+        let mut conn = setup_test_db()?;
+        let tx = conn.transaction()?;
+
+        let issue = Issue {
+            id: "issue-1".to_string(),
+            title: "Test".to_string(),
+            kind: "task".to_string(),
+            priority: 1,
+            status: "open".to_string(),
+            description: None,
+            design: None,
+            acceptance_criteria: None,
+            notes: None,
+        };
+        upsert_issue(&tx, &issue)?;
+
+        let label = Label {
+            id: "label-1".to_string(),
+            name: "backend".to_string(),
+            color: None,
+            description: None,
+        };
+        create_label(&tx, &label)?;
+        add_issue_label(&tx, "issue-1", "label-1")?;
+        add_issue_label(&tx, "issue-1", "label-1")?;
+        tx.commit()?;
+
+        let labels = get_issue_labels(&conn, "issue-1")?;
+        assert_eq!(labels.len(), 1);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_get_empty_issue_labels() -> Result<()> {
+        let mut conn = setup_test_db()?;
+        let tx = conn.transaction()?;
+
+        let issue = Issue {
+            id: "issue-1".to_string(),
+            title: "Test".to_string(),
+            kind: "task".to_string(),
+            priority: 1,
+            status: "open".to_string(),
+            description: None,
+            design: None,
+            acceptance_criteria: None,
+            notes: None,
+        };
+        upsert_issue(&tx, &issue)?;
+        tx.commit()?;
+
+        let labels = get_issue_labels(&conn, "issue-1")?;
+        assert_eq!(labels.len(), 0);
+
+        Ok(())
+    }
+}

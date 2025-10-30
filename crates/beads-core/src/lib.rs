@@ -11,6 +11,23 @@ pub use repo::{find_repo, init_repo, BeadsRepo, BEADS_DIR, DB_FILE, EVENTS_FILE}
 use db::{add_dependency, add_issue_label, apply_issue_update, create_schema, get_all_issues as db_get_all, get_all_labels as db_get_all_labels, get_dependencies as db_get_deps, get_dependents as db_get_dependents, get_open_dependencies as db_get_open_deps, get_issue as db_get_issue, get_issue_labels as db_get_issue_labels, get_issues_by_label as db_get_issues_by_label, remove_dependency, remove_issue_label, set_meta, upsert_issue};
 use rusqlite::{Connection, OptionalExtension};
 
+fn validate_label_name(name: &str) -> Result<()> {
+    if name.trim().is_empty() {
+        return Err(BeadsError::Custom("Label name cannot be empty".to_string()));
+    }
+    if name.len() > 50 {
+        return Err(BeadsError::Custom(
+            "Label name cannot exceed 50 characters".to_string(),
+        ));
+    }
+    if !name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+        return Err(BeadsError::Custom(
+            "Label name can only contain alphanumeric characters, hyphens, and underscores".to_string(),
+        ));
+    }
+    Ok(())
+}
+
 pub fn create_issue(
     repo: &BeadsRepo,
     title: &str,
@@ -149,6 +166,9 @@ pub fn sync_repo(repo: &BeadsRepo, full: bool) -> Result<usize> {
 }
 
 pub fn add_label_to_issue(repo: &BeadsRepo, issue_id: &str, label_name: &str) -> Result<Label> {
+    // Validate label name format
+    validate_label_name(label_name)?;
+    
     // Validate issue exists
     if get_issue(repo, issue_id)?.is_none() {
         return Err(BeadsError::Custom(format!("Issue '{}' not found", issue_id)));
