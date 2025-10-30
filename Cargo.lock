@@ -102,6 +102,8 @@ dependencies = [
  "beads-core",
  "beads-tracing",
  "clap",
+ "serde",
+ "serde_json",
  "tracing",
 ]
 

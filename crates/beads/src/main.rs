@@ -27,17 +27,7 @@ enum Commands {
         #[arg(short, long)]
         title: String,
         #[arg(long)]
-        description: Option<String>,
-        #[arg(long)]
-        design: Option<String>,
-        #[arg(long)]
-        acceptance_criteria: Option<String>,
-        #[arg(long)]
-        notes: Option<String>,
-        #[arg(short, long, default_value = "task")]
-        kind: String,
-        #[arg(short, long, default_value_t = 2)]
-        priority: u32,
+        data: String,
     },
     /// Show issue details
     Show {
@@ -78,17 +68,9 @@ fn main() -> Result<()> {
             info!(command = "init", %prefix);
             commands::init::run(&prefix)?;
         }
-        Commands::Create {
-            title,
-            description,
-            design,
-            acceptance_criteria,
-            notes,
-            kind,
-            priority,
-        } => {
-            info!(command = "create", %title, %kind, priority);
-            commands::create::run(repo.unwrap(), &title, description, design, acceptance_criteria, notes, &kind, priority)?;
+        Commands::Create { title, data } => {
+            info!(command = "create", %title);
+            commands::create::run(repo.unwrap(), &title, &data)?;
         }
         Commands::Show { id } => {
             info!(command = "show", %id);

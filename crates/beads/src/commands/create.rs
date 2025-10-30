@@ -1,20 +1,47 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use beads_core::{create_issue, repo::BeadsRepo};
+use serde::Deserialize;
 
-pub fn run(
-    repo: BeadsRepo,
-    title: &str,
+#[derive(Deserialize)]
+struct IssueData {
+    #[serde(default)]
     description: Option<String>,
-    _design: Option<String>,
-    _acceptance_criteria: Option<String>,
-    _notes: Option<String>,
-    kind: &str,
+    #[serde(default)]
+    design: Option<String>,
+    #[serde(default)]
+    acceptance_criteria: Option<String>,
+    #[serde(default)]
+    notes: Option<String>,
+    #[serde(default = "default_kind")]
+    kind: String,
+    #[serde(default = "default_priority")]
     priority: u32,
-) -> Result<()> {
-    let event = create_issue(&repo, title, kind, priority)?;
+}
+
+fn default_kind() -> String {
+    "task".to_string()
+}
+
+fn default_priority() -> u32 {
+    2
+}
+
+pub fn run(repo: BeadsRepo, title: &str, data: &str) -> Result<()> {
+    if title.trim().is_empty() {
+        return Err(anyhow!("Title is required and cannot be empty"));
+    }
+
+    let issue_data: IssueData = serde_json::from_str(data)
+        .map_err(|e| anyhow!("Invalid JSON data: {}", e))?;
+
+    let event = create_issue(&repo, title, &issue_data.kind, issue_data.priority)?;
+    
     println!("Created issue {}", event.id);
-    if description.is_some() {
+    
+    if issue_data.description.is_some() || issue_data.design.is_some() 
+        || issue_data.acceptance_criteria.is_some() || issue_data.notes.is_some() {
         eprintln!("Note: Extended fields (description, design, etc.) not yet stored in database");
     }
+    
     Ok(())
 }
