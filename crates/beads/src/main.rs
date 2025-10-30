@@ -34,6 +34,9 @@ enum Commands {
         /// Labels to add to the issue (comma-separated)
         #[arg(short, long)]
         label: Option<String>,
+        /// Attach documents in format "name:path" (can be used multiple times)
+        #[arg(long)]
+        doc: Vec<String>,
     },
     /// Show issue details
     Show {
@@ -107,6 +110,9 @@ enum Commands {
     /// Manage issue labels
     #[command(subcommand)]
     Label(LabelCommand),
+    /// Manage issue documents
+    #[command(subcommand)]
+    Doc(DocCommand),
 }
 
 #[derive(Subcommand)]
@@ -158,6 +164,36 @@ enum LabelCommand {
     ListAll,
 }
 
+#[derive(Subcommand)]
+enum DocCommand {
+    /// Add a document to an issue from a file
+    Add {
+        /// The issue to attach the document to
+        issue_id: String,
+        /// Path to the file to attach
+        file_path: String,
+    },
+    /// Export a document to the workspace for editing
+    Edit {
+        /// The issue containing the document
+        issue_id: String,
+        /// Name of the document to edit
+        doc_name: String,
+    },
+    /// Sync changes from workspace back to blob store
+    Sync {
+        /// The issue containing the document
+        issue_id: String,
+        /// Name of the document to sync
+        doc_name: String,
+    },
+    /// List all documents attached to an issue
+    List {
+        /// The issue ID
+        issue_id: String,
+    },
+}
+
 fn main() -> Result<()> {
     beads_tracing::init();
 
@@ -172,9 +208,9 @@ fn main() -> Result<()> {
             info!(command = "init", %prefix);
             commands::init::run(&prefix)?;
         }
-        Commands::Create { title, data, depends_on, label } => {
-            info!(command = "create", %title, deps = depends_on.len(), label = label.as_deref());
-            commands::create::run(repo.unwrap(), &title, &data, depends_on, label)?;
+        Commands::Create { title, data, depends_on, label, doc } => {
+            info!(command = "create", %title, deps = depends_on.len(), label = label.as_deref(), docs = doc.len());
+            commands::create::run(repo.unwrap(), &title, &data, depends_on, label, doc)?;
         }
         Commands::Show { id } => {
             info!(command = "show", %id);
@@ -257,6 +293,24 @@ fn main() -> Result<()> {
             LabelCommand::ListAll => {
                 info!(command = "label list-all");
                 commands::label::list_all(repo.unwrap())?;
+            }
+        },
+        Commands::Doc(doc_cmd) => match doc_cmd {
+            DocCommand::Add { issue_id, file_path } => {
+                info!(command = "doc add", %issue_id, %file_path);
+                commands::doc::add(repo.unwrap(), &issue_id, &file_path)?;
+            }
+            DocCommand::Edit { issue_id, doc_name } => {
+                info!(command = "doc edit", %issue_id, %doc_name);
+                commands::doc::edit(repo.unwrap(), &issue_id, &doc_name)?;
+            }
+            DocCommand::Sync { issue_id, doc_name } => {
+                info!(command = "doc sync", %issue_id, %doc_name);
+                commands::doc::sync(repo.unwrap(), &issue_id, &doc_name)?;
+            }
+            DocCommand::List { issue_id } => {
+                info!(command = "doc list", %issue_id);
+                commands::doc::list(repo.unwrap(), &issue_id)?;
             }
         },
     }

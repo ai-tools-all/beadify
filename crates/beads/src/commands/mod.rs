@@ -1,5 +1,6 @@
 pub mod create;
 pub mod dep;
+pub mod doc;
 pub mod init;
 pub mod label;
 pub mod list;

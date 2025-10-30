@@ -1,5 +1,7 @@
+use std::fs;
+
 use anyhow::{anyhow, Result};
-use beads_core::{create_issue_with_data, add_label_to_issue, repo::BeadsRepo};
+use beads_core::{create_issue_with_data, add_label_to_issue, add_document_to_issue, repo::BeadsRepo};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -18,7 +20,7 @@ fn default_priority() -> u32 {
     2
 }
 
-pub fn run(repo: BeadsRepo, title: &str, data: &str, depends_on: Vec<String>, labels: Option<String>) -> Result<()> {
+pub fn run(repo: BeadsRepo, title: &str, data: &str, depends_on: Vec<String>, labels: Option<String>, docs: Vec<String>) -> Result<()> {
     if title.trim().is_empty() {
         return Err(anyhow!("Title is required and cannot be empty"));
     }
@@ -43,6 +45,28 @@ pub fn run(repo: BeadsRepo, title: &str, data: &str, depends_on: Vec<String>, la
                     Err(e) => eprintln!("Failed to add label '{}': {}", label_name, e),
                 }
             }
+        }
+    }
+    
+    // Add documents if provided
+    for doc_spec in docs {
+        let parts: Vec<&str> = doc_spec.splitn(2, ':').collect();
+        if parts.len() != 2 {
+            eprintln!("Invalid doc format '{}'. Expected 'name:path'", doc_spec);
+            continue;
+        }
+        
+        let doc_name = parts[0];
+        let file_path = parts[1];
+        
+        match fs::read(file_path) {
+            Ok(content) => {
+                match add_document_to_issue(&repo, &event.id, doc_name, &content) {
+                    Ok(_) => println!("Attached '{}' to {}", doc_name, event.id),
+                    Err(e) => eprintln!("Failed to attach '{}': {}", doc_name, e),
+                }
+            }
+            Err(e) => eprintln!("Failed to read file '{}': {}", file_path, e),
         }
     }
     
