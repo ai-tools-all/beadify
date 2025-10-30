@@ -54,3 +54,17 @@
 {"event_id":"01K8VG26216QW2PKY62BHPPA4G","ts":"2025-10-30T21:23:29.985Z","op":"update","id":"bd-028","actor":"abhishek","data":{"status":"closed"}}
 {"event_id":"01K8VG5Q1PA607DSQA3GWME826","ts":"2025-10-30T21:25:25.686Z","op":"update","id":"bd-032","actor":"abhishek","data":{"status":"in_progress"}}
 {"event_id":"01K8VG9NQAWRRNY8B04D2AXS07","ts":"2025-10-30T21:27:35.402Z","op":"update","id":"bd-032","actor":"abhishek","data":{"status":"closed"}}
+{"event_id":"01K8VGB1YCAB010N0RE3B3HMWS","ts":"2025-10-30T21:28:20.684Z","op":"update","id":"bd-033","actor":"abhishek","data":{"status":"in_progress"}}
+{"event_id":"01K8VGD0FKSXJG20KNAM875GKG","ts":"2025-10-30T21:29:24.723Z","op":"update","id":"bd-033","actor":"abhishek","data":{"status":"closed"}}
+{"event_id":"01K8VGFHTM69FZ1VHP7SWQ6BR7","ts":"2025-10-30T21:30:48.020Z","op":"update","id":"bd-010","actor":"abhishek","data":{"status":"in_progress"}}
+{"event_id":"01K8VGJ6Y0TMXGHJRC44ZGC58M","ts":"2025-10-30T21:32:15.168Z","op":"update","id":"bd-010","actor":"abhishek","data":{"status":"closed"}}
+{"event_id":"01K8VGR0YMJT49JF88DGHT7F5G","ts":"2025-10-30T21:35:25.652Z","op":"create","id":"bd-034","actor":"abhishek","data":{"kind":"epic","priority":2,"status":"open","title":"Implement labels system"}}
+{"event_id":"01K8VGR79WWDF75SGBVDN44E5C","ts":"2025-10-30T21:35:32.156Z","op":"create","id":"bd-035","actor":"abhishek","data":{"kind":"feature","priority":1,"status":"open","title":"Add label data model and persistence"}}
+{"event_id":"01K8VGRBR4PZ9T92GRHDV2RXQR","ts":"2025-10-30T21:35:36.708Z","op":"create","id":"bd-036","actor":"abhishek","data":{"kind":"feature","priority":2,"status":"open","title":"Implement label management CLI commands"}}
+{"event_id":"01K8VGRGMYTWW652MGJEBNXTFK","ts":"2025-10-30T21:35:41.727Z","op":"create","id":"bd-037","actor":"abhishek","data":{"kind":"feature","priority":2,"status":"open","title":"Support label filtering and display in listings"}}
+{"event_id":"01K8VGRMEPSPHNGTTDCY24YRSK","ts":"2025-10-30T21:35:45.622Z","op":"create","id":"bd-038","actor":"abhishek","data":{"kind":"feature","priority":2,"status":"open","title":"Enable label assignment during create and sync flows"}}
+{"event_id":"01K8VGRRRP1R0WR43RZYNZV968","ts":"2025-10-30T21:35:50.038Z","op":"create","id":"bd-039","actor":"abhishek","data":{"kind":"task","priority":2,"status":"open","title":"Add validation and tests for labels feature"}}
+{"event_id":"01K8VGT33JBCCJJ92YWGN37TDY","ts":"2025-10-30T21:36:33.394Z","op":"create","id":"bd-040","actor":"abhishek","data":{"kind":"feature","priority":1,"status":"open","title":"Package: Add GitHub Actions workflow for multi-platform builds"}}
+{"event_id":"01K8VGY0R41QJ5T575485NMCTD","ts":"2025-10-30T21:38:42.052Z","op":"update","id":"bd-001","actor":"abhishek","data":{"status":"closed"}}
+{"event_id":"01K8VH01NRZB29GGJNSJQB1VDA","ts":"2025-10-30T21:39:48.536Z","op":"update","id":"bd-040","actor":"abhishek","data":{"status":"closed"}}
+{"event_id":"01K8VH032CFBP9F2VBTWZ2GMWT","ts":"2025-10-30T21:39:49.964Z","op":"update","id":"bd-035","actor":"abhishek","data":{"status":"in_progress"}}
