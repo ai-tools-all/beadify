@@ -12,6 +12,7 @@ beads create --title "Add feature" --data '{"kind":"feature","priority":2}' --de
 beads show bd-01
 
 # Manage dependencies
+beads dep show bd-02               # show blockers and dependents
 beads dep add bd-02 bd-01          # bd-02 depends on bd-01
 beads dep remove bd-02 bd-01       # remove dependency
 
@@ -64,6 +65,31 @@ Blocked By:
   ↳ bd-001 [open] p1 - Implement show command
   ↳ bd-002 [open] p2 - Update merge logic
 ```
+
+## Git Commit Guidelines
+
+When committing changes for an issue:
+
+```bash
+# 1. Only add files changed for THIS specific issue (never use git add .)
+git add path/to/file1.rs path/to/file2.rs
+
+# 2. Commit with issue number in title (conventional commit format)
+git commit -m "fix(bd-015): resolve sync driver race condition"
+git commit -m "feat(bd-023): add search filter by priority"
+git commit -m "refactor(bd-018): simplify event parsing logic"
+```
+
+**Commit format:** `<type>(<issue-id>): <short description>`
+- **Types:** `fix`, `feat`, `refactor`, `docs`, `test`, `chore`
+- **Issue ID:** Always include (e.g., `bd-015`)
+- **Description:** 50-72 chars recommended
+
+**Rules:**
+- ✅ Always include issue number in commit title
+- ✅ Only commit files changed for current issue (never `git add .`)
+- ✅ Use conventional commit format
+- ✅ Keep titles short and focused
 
 ## Key Reminders
 
