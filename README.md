@@ -87,6 +87,57 @@ git commit -m "fix(bd-041): your description"
 beads update bd-041 --status closed
 ```
 
+## Document Management
+
+Beads supports attaching documents to issues using a blob store with an ephemeral workspace for editing.
+
+### Attach documents when creating an issue
+```bash
+beads create --title "API Design" \
+  --data '{"kind":"feature","priority":1}' \
+  --doc "spec:./docs/api-spec.md" \
+  --doc "notes:./notes.txt"
+```
+
+### Add documents to existing issues
+```bash
+beads doc add bd-042 ./research/findings.md
+```
+
+### Edit-Sync Workflow
+
+Documents are stored in an immutable blob store (`.beads/blobs/`). To edit:
+
+**1. Check out document to workspace:**
+```bash
+beads doc edit bd-042 findings.md
+# Exports to .beads/docs/bd-042/findings.md
+```
+
+**2. Edit the file** in `.beads/docs/bd-042/findings.md` with your editor
+
+**3. Check in changes:**
+```bash
+beads doc sync bd-042 findings.md
+# Prompts: Clean up workspace file? [y/N]
+```
+
+The sync command:
+- Calculates new hash and stores updated content in blob store
+- Updates issue metadata to point to new hash
+- Optionally cleans up the workspace file
+
+**List all documents on an issue:**
+```bash
+beads doc list bd-042
+```
+
+**Notes:**
+- `.beads/blobs/` is permanent and tracked in Git (source of truth)
+- `.beads/docs/` is temporary and gitignored (workspace only)
+- Same content = same hash = automatic deduplication
+- Document history preserved through event log
+
 ## Git Commit Guidelines
 
 When committing changes for an issue:
