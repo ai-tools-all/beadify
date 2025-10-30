@@ -18,6 +18,7 @@ beads sync          # runs git pull → apply incremental log events → git pus
 beads sync --full   # full log replay into a fresh cache
 ```
 
+
 Key behavior reminders:
 
 - All mutations append to `.beads/events.jsonl` and update `.beads/beads.db` immediately (offline-first).
