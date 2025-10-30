@@ -100,6 +100,11 @@ enum Commands {
 
 #[derive(Subcommand)]
 enum DepCommand {
+    /// Show dependencies and dependents for an issue
+    Show {
+        /// The issue ID
+        issue_id: String,
+    },
     /// Add a dependency: this issue depends on another
     Add {
         /// The issue that depends on another
@@ -203,6 +208,10 @@ fn main() -> Result<()> {
             commands::ready::run(repo.unwrap())?;
         }
         Commands::Dep(dep_cmd) => match dep_cmd {
+            DepCommand::Show { issue_id } => {
+                info!(command = "dep show", %issue_id);
+                commands::dep::show(repo.unwrap(), &issue_id)?;
+            }
             DepCommand::Add {
                 issue_id,
                 depends_on_id,

@@ -153,6 +153,16 @@ pub fn get_dependencies(conn: &Connection, issue_id: &str) -> Result<Vec<String>
     Ok(deps)
 }
 
+pub fn get_dependents(conn: &Connection, issue_id: &str) -> Result<Vec<String>> {
+    let mut stmt = conn.prepare(
+        "SELECT issue_id FROM dependencies WHERE depends_on_id = ?1 ORDER BY issue_id"
+    )?;
+    let dependents = stmt
+        .query_map(params![issue_id], |row| row.get(0))?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    Ok(dependents)
+}
+
 pub fn remove_dependency(tx: &Transaction<'_>, issue_id: &str, depends_on_id: &str) -> Result<()> {
     let rows = tx.execute(
         "DELETE FROM dependencies WHERE issue_id = ?1 AND depends_on_id = ?2",

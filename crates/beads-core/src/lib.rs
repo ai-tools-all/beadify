@@ -8,7 +8,7 @@ pub use error::{BeadsError, Result};
 pub use model::{Event, Issue, IssueUpdate, Label, OpKind};
 pub use repo::{find_repo, init_repo, BeadsRepo, BEADS_DIR, DB_FILE, EVENTS_FILE};
 
-use db::{add_dependency, add_issue_label, apply_issue_update, create_schema, get_all_issues as db_get_all, get_all_labels as db_get_all_labels, get_dependencies as db_get_deps, get_issue as db_get_issue, get_issue_labels as db_get_issue_labels, get_issues_by_label as db_get_issues_by_label, remove_dependency, remove_issue_label, set_meta, upsert_issue};
+use db::{add_dependency, add_issue_label, apply_issue_update, create_schema, get_all_issues as db_get_all, get_all_labels as db_get_all_labels, get_dependencies as db_get_deps, get_dependents as db_get_dependents, get_issue as db_get_issue, get_issue_labels as db_get_issue_labels, get_issues_by_label as db_get_issues_by_label, remove_dependency, remove_issue_label, set_meta, upsert_issue};
 use rusqlite::{Connection, OptionalExtension};
 
 pub fn create_issue(
@@ -55,6 +55,12 @@ pub fn get_dependencies(repo: &BeadsRepo, issue_id: &str) -> Result<Vec<String>>
     let conn = repo.open_db()?;
     create_schema(&conn)?;
     db_get_deps(&conn, issue_id)
+}
+
+pub fn get_dependents(repo: &BeadsRepo, issue_id: &str) -> Result<Vec<String>> {
+    let conn = repo.open_db()?;
+    create_schema(&conn)?;
+    db_get_dependents(&conn, issue_id)
 }
 
 pub fn add_issue_dependency(repo: &BeadsRepo, issue_id: &str, depends_on_id: &str) -> Result<()> {
