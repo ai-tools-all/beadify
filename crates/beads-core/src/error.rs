@@ -14,6 +14,8 @@ pub enum BeadsError {
     AlreadyInitialized,
     #[error("beads repository not found")]
     RepoNotFound,
+    #[error("missing repository configuration: {0}")]
+    MissingConfig(&'static str),
     #[error("update requires at least one field")]
     EmptyUpdate,
 }

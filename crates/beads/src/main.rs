@@ -17,7 +17,11 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Initialize a new beads repository
-    Init,
+    Init {
+        /// Prefix for issue IDs (e.g. "proj")
+        #[arg(long)]
+        prefix: String,
+    },
     /// Create a new issue
     Create {
         #[arg(short, long)]
@@ -53,14 +57,14 @@ fn main() -> Result<()> {
 
     let cli = Cli::parse();
     let repo = match cli.command {
-        Commands::Init => None,
+        Commands::Init { .. } => None,
         _ => Some(find_repo()?),
     };
 
     match cli.command {
-        Commands::Init => {
-            info!("command = init");
-            commands::init::run()?;
+        Commands::Init { prefix } => {
+            info!(command = "init", %prefix);
+            commands::init::run(&prefix)?;
         }
         Commands::Create {
             title,

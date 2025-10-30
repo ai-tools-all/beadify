@@ -18,30 +18,19 @@ use crate::{
 pub fn append_create_event(
     repo: &BeadsRepo,
     conn: &Connection,
-    title: &str,
-    kind: &str,
-    priority: u32,
-) -> Result<(Event, Issue, u64)> {
-    let issue_id = format!("bd-{}", Ulid::new());
-    let issue = Issue {
-        id: issue_id.clone(),
-        title: title.to_string(),
-        kind: kind.to_string(),
-        priority,
-        status: "open".to_string(),
-    };
-
+    issue: &Issue,
+) -> Result<(Event, u64)> {
     let data = json!({
-        "title": title,
-        "kind": kind,
-        "priority": priority,
+        "title": issue.title,
+        "kind": issue.kind,
+        "priority": issue.priority,
         "status": issue.status,
     });
 
     let event = build_event(conn, issue.id.clone(), OpKind::Create, data)?;
     let offset = write_event(repo, &event)?;
 
-    Ok((event, issue, offset))
+    Ok((event, offset))
 }
 
 pub fn append_update_event(
