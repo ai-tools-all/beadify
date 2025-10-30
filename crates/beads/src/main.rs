@@ -44,6 +44,9 @@ enum Commands {
         /// Filter by status (open, in_progress, closed, etc.)
         #[arg(long)]
         status: Option<String>,
+        /// Show dependency tree graph view
+        #[arg(long)]
+        dep_graph: bool,
     },
     /// Update an existing issue
     Update {
@@ -126,9 +129,13 @@ fn main() -> Result<()> {
             info!(command = "show", %id);
             commands::show::run(repo.unwrap(), &id)?;
         }
-        Commands::List { all, status } => {
-            info!(command = "list", all, status = status.as_deref());
-            commands::list::run(repo.unwrap(), all, status)?;
+        Commands::List {
+            all,
+            status,
+            dep_graph,
+        } => {
+            info!(command = "list", all, status = status.as_deref(), dep_graph);
+            commands::list::run(repo.unwrap(), all, status, dep_graph)?;
         }
         Commands::Update {
             id,
