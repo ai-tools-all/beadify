@@ -113,6 +113,20 @@ enum Commands {
     /// Manage issue documents
     #[command(subcommand)]
     Doc(DocCommand),
+    /// Delete one or more issues (soft delete with status="deleted")
+    Delete {
+        /// Issue IDs to delete
+        issue_ids: Vec<String>,
+        /// Confirm deletion without preview
+        #[arg(long)]
+        force: bool,
+        /// Recursively delete dependent issues
+        #[arg(long)]
+        cascade: bool,
+        /// Read issue IDs from file (one per line)
+        #[arg(long)]
+        from_file: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -312,6 +326,10 @@ fn main() -> Result<()> {
                 info!(command = "doc list", %issue_id);
                 commands::doc::list(repo.unwrap(), &issue_id)?;
             }
+        },
+        Commands::Delete { issue_ids, force, cascade, from_file } => {
+            info!(command = "delete", ids = issue_ids.len(), force, cascade, from_file = from_file.as_deref());
+            commands::delete::run(repo.unwrap(), issue_ids, force, cascade, from_file)?;
         },
     }
 
