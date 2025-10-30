@@ -103,3 +103,12 @@
 {"event_id":"01K8VJPBKP3NTDDARFX3RZMND1","ts":"2025-10-30T22:09:28.182Z","op":"update","id":"bd-045","actor":"abhishek","data":{"status":"closed"}}
 {"event_id":"01K8VJPBKVF16BJRJMGMRW4YCT","ts":"2025-10-30T22:09:28.187Z","op":"update","id":"bd-048","actor":"abhishek","data":{"status":"closed"}}
 {"event_id":"01K8VJPBKZ42CKMT7ES4EDPS03","ts":"2025-10-30T22:09:28.191Z","op":"update","id":"bd-049","actor":"abhishek","data":{"status":"closed"}}
+{"event_id":"01K8VJWDQJSB0E9E2CN5VN911H","ts":"2025-10-30T22:12:46.962Z","op":"create","id":"bd-055","actor":"abhishek","data":{"description":"This is a test description","notes":"Some notes","status":"open","title":"Test issue with data"}}
+{"event_id":"01K8VJXYS4PRYH61R942KF3E9W","ts":"2025-10-30T22:13:37.188Z","op":"create","id":"bd-056","actor":"abhishek","data":{"acceptance_criteria":"1. Data persists in DB\n2. Shows in beads show\n3. Formatted nicely","description":"This is a comprehensive test of the data storage feature","design":"Multi-layered architecture","kind":"feature","notes":"This demonstrates the feature working end-to-end","priority":1,"status":"open","title":"Feature test with comprehensive metadata"}}
+{"event_id":"01K8VJZV7SNR3FF6K5S3BG412V","ts":"2025-10-30T22:14:39.097Z","op":"create","id":"bd-057","actor":"abhishek","data":{"description":"Works after cleanup","priority":1,"status":"open","title":"Test cleanup"}}
+{"event_id":"01K8VK19XP75K65D1YWSBXVVM0","ts":"2025-10-30T22:15:26.902Z","op":"update","id":"bd-046","actor":"abhishek","data":{"status":"closed"}}
+{"event_id":"01K8VK19Y4B88232KQP5FDTZ9S","ts":"2025-10-30T22:15:26.916Z","op":"update","id":"bd-050","actor":"abhishek","data":{"status":"closed"}}
+{"event_id":"01K8VK19Y95ENKSJYFKKCDQ4M1","ts":"2025-10-30T22:15:26.921Z","op":"update","id":"bd-051","actor":"abhishek","data":{"status":"closed"}}
+{"event_id":"01K8VK19YF12RPZXB2H98JY4GP","ts":"2025-10-30T22:15:26.927Z","op":"update","id":"bd-052","actor":"abhishek","data":{"status":"closed"}}
+{"event_id":"01K8VK19YK1JG63WPTJ0JSNJZ7","ts":"2025-10-30T22:15:26.931Z","op":"update","id":"bd-053","actor":"abhishek","data":{"status":"closed"}}
+{"event_id":"01K8VK19YQ4775K6NXM8VKN2CK","ts":"2025-10-30T22:15:26.935Z","op":"update","id":"bd-054","actor":"abhishek","data":{"status":"closed"}}
