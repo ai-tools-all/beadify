@@ -31,6 +31,9 @@ enum Commands {
         /// Issues this depends on (can be used multiple times)
         #[arg(long)]
         depends_on: Vec<String>,
+        /// Labels to add to the issue (comma-separated)
+        #[arg(short, long)]
+        label: Option<String>,
     },
     /// Show issue details
     Show {
@@ -163,9 +166,9 @@ fn main() -> Result<()> {
             info!(command = "init", %prefix);
             commands::init::run(&prefix)?;
         }
-        Commands::Create { title, data, depends_on } => {
-            info!(command = "create", %title, deps = depends_on.len());
-            commands::create::run(repo.unwrap(), &title, &data, depends_on)?;
+        Commands::Create { title, data, depends_on, label } => {
+            info!(command = "create", %title, deps = depends_on.len(), label = label.as_deref());
+            commands::create::run(repo.unwrap(), &title, &data, depends_on, label)?;
         }
         Commands::Show { id } => {
             info!(command = "show", %id);
