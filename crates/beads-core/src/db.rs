@@ -216,6 +216,7 @@ pub fn remove_dependency(tx: &Transaction<'_>, issue_id: &str, depends_on_id: &s
 
 pub fn clear_state(tx: &Transaction<'_>) -> Result<()> {
     tx.execute("DELETE FROM issues", [])?;
+    tx.execute("DELETE FROM _meta", [])?;
     Ok(())
 }
 
@@ -440,6 +441,7 @@ mod tests {
             design: None,
             acceptance_criteria: None,
             notes: None,
+            data: None,
         };
         upsert_issue(&tx, &issue)?;
 
@@ -475,6 +477,7 @@ mod tests {
             design: None,
             acceptance_criteria: None,
             notes: None,
+            data: None,
         };
         upsert_issue(&tx, &issue)?;
 
@@ -529,6 +532,7 @@ mod tests {
             design: None,
             acceptance_criteria: None,
             notes: None,
+            data: None,
         };
         upsert_issue(&tx, &issue)?;
 
@@ -614,6 +618,7 @@ mod tests {
                 design: None,
                 acceptance_criteria: None,
                 notes: None,
+                data: None,
             };
             upsert_issue(&tx, &issue)?;
         }
@@ -655,6 +660,7 @@ mod tests {
             design: None,
             acceptance_criteria: None,
             notes: None,
+            data: None,
         };
         upsert_issue(&tx, &issue)?;
 
@@ -690,6 +696,7 @@ mod tests {
             design: None,
             acceptance_criteria: None,
             notes: None,
+            data: None,
         };
         upsert_issue(&tx, &issue)?;
         tx.commit()?;
