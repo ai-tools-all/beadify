@@ -190,12 +190,19 @@ fn apply_event(tx: &Transaction<'_>, event: &Event) -> Result<()> {
             }
 
             let payload: CreatePayload = serde_json::from_value(event.data.clone())?;
+            let status = payload.status.unwrap_or_else(|| "open".to_string());
+            
+            // Skip issues with status="deleted" - don't insert into SQLite
+            if status == "deleted" {
+                return Ok(());
+            }
+            
             let issue = Issue {
                 id: event.id.clone(),
                 title: payload.title,
                 kind: payload.kind,
                 priority: payload.priority,
-                status: payload.status.unwrap_or_else(|| "open".to_string()),
+                status,
                 description: None,
                 design: None,
                 acceptance_criteria: None,
@@ -206,6 +213,19 @@ fn apply_event(tx: &Transaction<'_>, event: &Event) -> Result<()> {
         }
         OpKind::Update => {
             let update: IssueUpdate = serde_json::from_value(event.data.clone())?;
+            
+            // Check if this is a deletion (status="deleted")
+            if let Some(ref status) = update.status {
+                if status == "deleted" {
+                    // Remove issue from SQLite
+                    db::delete_issue(tx, &event.id)?;
+                    // Update text references in remaining issues
+                    db::update_text_references(tx, &event.id)?;
+                    return Ok(());
+                }
+            }
+            
+            // Normal update handling
             db::apply_issue_update(tx, &event.id, &update)
         }
         _ => Ok(()),
