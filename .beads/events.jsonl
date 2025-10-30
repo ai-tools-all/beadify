@@ -99,3 +99,7 @@
 {"event_id":"01K8VJEY6BBD1RG0EWF5MWVE96","ts":"2025-10-30T22:05:25.067Z","op":"create","id":"bd-052","actor":"abhishek","data":{"kind":"task","priority":2,"status":"open","title":"Optimize slow database queries"}}
 {"event_id":"01K8VJEY6WKXV000YFQHPQYHDJ","ts":"2025-10-30T22:05:25.084Z","op":"create","id":"bd-053","actor":"abhishek","data":{"kind":"task","priority":2,"status":"open","title":"Implement payment webhook endpoint"}}
 {"event_id":"01K8VJEY793553WNS7ZW2QB2X3","ts":"2025-10-30T22:05:25.097Z","op":"create","id":"bd-054","actor":"abhishek","data":{"kind":"task","priority":2,"status":"open","title":"Setup iOS app project structure"}}
+{"event_id":"01K8VJPBK8BHNWMJ2X0816ZNN1","ts":"2025-10-30T22:09:28.168Z","op":"update","id":"bd-034","actor":"abhishek","data":{"status":"closed"}}
+{"event_id":"01K8VJPBKP3NTDDARFX3RZMND1","ts":"2025-10-30T22:09:28.182Z","op":"update","id":"bd-045","actor":"abhishek","data":{"status":"closed"}}
+{"event_id":"01K8VJPBKVF16BJRJMGMRW4YCT","ts":"2025-10-30T22:09:28.187Z","op":"update","id":"bd-048","actor":"abhishek","data":{"status":"closed"}}
+{"event_id":"01K8VJPBKZ42CKMT7ES4EDPS03","ts":"2025-10-30T22:09:28.191Z","op":"update","id":"bd-049","actor":"abhishek","data":{"status":"closed"}}
