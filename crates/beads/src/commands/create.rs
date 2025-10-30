@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use beads_core::{create_issue, add_label_to_issue, repo::BeadsRepo};
+use beads_core::{create_issue_with_data, add_label_to_issue, repo::BeadsRepo};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -34,7 +34,10 @@ pub fn run(repo: BeadsRepo, title: &str, data: &str, depends_on: Vec<String>, la
     let issue_data: IssueData = serde_json::from_str(data)
         .map_err(|e| anyhow!("Invalid JSON data: {}", e))?;
 
-    let event = create_issue(&repo, title, &issue_data.kind, issue_data.priority, depends_on)?;
+    let data_json: serde_json::Value = serde_json::from_str(data)
+        .map_err(|e| anyhow!("Invalid JSON data: {}", e))?;
+
+    let event = create_issue_with_data(&repo, title, &issue_data.kind, issue_data.priority, depends_on, Some(data_json))?;
     
     println!("Created issue {}", event.id);
     
@@ -49,11 +52,6 @@ pub fn run(repo: BeadsRepo, title: &str, data: &str, depends_on: Vec<String>, la
                 }
             }
         }
-    }
-    
-    if issue_data.description.is_some() || issue_data.design.is_some() 
-        || issue_data.acceptance_criteria.is_some() || issue_data.notes.is_some() {
-        eprintln!("Note: Extended fields (description, design, etc.) not yet stored in database");
     }
     
     Ok(())

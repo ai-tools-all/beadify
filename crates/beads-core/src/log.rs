@@ -20,12 +20,21 @@ pub fn append_create_event(
     conn: &Connection,
     issue: &Issue,
 ) -> Result<(Event, u64)> {
-    let data = json!({
-        "title": issue.title,
-        "kind": issue.kind,
-        "priority": issue.priority,
-        "status": issue.status,
-    });
+    let data = if let Some(issue_data) = &issue.data {
+        let mut data_obj = issue_data.clone();
+        if let Some(obj) = data_obj.as_object_mut() {
+            obj.insert("title".to_string(), json!(issue.title));
+            obj.insert("status".to_string(), json!(issue.status));
+        }
+        data_obj
+    } else {
+        json!({
+            "title": issue.title,
+            "kind": issue.kind,
+            "priority": issue.priority,
+            "status": issue.status,
+        })
+    };
 
     let event = build_event(conn, issue.id.clone(), OpKind::Create, data)?;
     let offset = write_event(repo, &event)?;
@@ -191,6 +200,7 @@ fn apply_event(tx: &Transaction<'_>, event: &Event) -> Result<()> {
                 design: None,
                 acceptance_criteria: None,
                 notes: None,
+                data: Some(event.data.clone()),
             };
             db::upsert_issue(tx, &issue)
         }

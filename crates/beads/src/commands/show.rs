@@ -11,6 +11,22 @@ pub fn run(repo: BeadsRepo, id: &str) -> Result<()> {
     println!("Kind:     {}", issue.kind);
     println!("Priority: {}", issue.priority);
 
+    if let Some(data) = &issue.data {
+        println!("Data:");
+        if let Some(obj) = data.as_object() {
+            for (key, value) in obj.iter() {
+                let formatted_value = match value {
+                    serde_json::Value::String(s) => s.clone(),
+                    serde_json::Value::Null => "null".to_string(),
+                    _ => value.to_string(),
+                };
+                println!("  {}:  {}", key, formatted_value);
+            }
+        } else {
+            println!("  {}", data);
+        }
+    }
+
     let deps = get_open_dependencies(&repo, id)?;
     if !deps.is_empty() {
         println!("\nBlocked By:");

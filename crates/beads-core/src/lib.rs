@@ -35,6 +35,17 @@ pub fn create_issue(
     priority: u32,
     depends_on: Vec<String>,
 ) -> Result<Event> {
+    create_issue_with_data(repo, title, kind, priority, depends_on, None)
+}
+
+pub fn create_issue_with_data(
+    repo: &BeadsRepo,
+    title: &str,
+    kind: &str,
+    priority: u32,
+    depends_on: Vec<String>,
+    data: Option<serde_json::Value>,
+) -> Result<Event> {
     let mut conn = repo.open_db()?;
     create_schema(&conn)?;
 
@@ -49,6 +60,7 @@ pub fn create_issue(
         design: None,
         acceptance_criteria: None,
         notes: None,
+        data,
     };
 
     let (event, new_offset) = log::append_create_event(repo, &conn, &issue)?;

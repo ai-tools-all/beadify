@@ -66,6 +66,7 @@ pub struct Issue {
     pub design: Option<String>,
     pub acceptance_criteria: Option<String>,
     pub notes: Option<String>,
+    pub data: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
