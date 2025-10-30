@@ -1,6 +1,7 @@
 pub mod create;
 pub mod dep;
 pub mod init;
+pub mod label;
 pub mod list;
 pub mod ready;
 pub mod search;

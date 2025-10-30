@@ -87,6 +87,9 @@ enum Commands {
     /// Manage issue dependencies
     #[command(subcommand)]
     Dep(DepCommand),
+    /// Manage issue labels
+    #[command(subcommand)]
+    Label(LabelCommand),
 }
 
 #[derive(Subcommand)]
@@ -105,6 +108,32 @@ enum DepCommand {
         /// The dependency to remove
         depends_on_id: String,
     },
+}
+
+#[derive(Subcommand)]
+enum LabelCommand {
+    /// Add a label to an issue
+    Add {
+        /// The issue to label
+        issue_id: String,
+        /// The label name
+        label_name: String,
+    },
+    /// Remove a label from an issue
+    Remove {
+        /// The issue to unlabel
+        issue_id: String,
+        /// The label name
+        label_name: String,
+    },
+    /// List labels on an issue
+    List {
+        /// The issue ID
+        issue_id: String,
+    },
+    /// List all labels in the database
+    #[command(name = "list-all")]
+    ListAll,
 }
 
 fn main() -> Result<()> {
@@ -179,6 +208,24 @@ fn main() -> Result<()> {
             } => {
                 info!(command = "dep remove", %issue_id, %depends_on_id);
                 commands::dep::remove(repo.unwrap(), &issue_id, &depends_on_id)?;
+            }
+        },
+        Commands::Label(label_cmd) => match label_cmd {
+            LabelCommand::Add { issue_id, label_name } => {
+                info!(command = "label add", %issue_id, %label_name);
+                commands::label::add(repo.unwrap(), &issue_id, &label_name)?;
+            }
+            LabelCommand::Remove { issue_id, label_name } => {
+                info!(command = "label remove", %issue_id, %label_name);
+                commands::label::remove(repo.unwrap(), &issue_id, &label_name)?;
+            }
+            LabelCommand::List { issue_id } => {
+                info!(command = "label list", %issue_id);
+                commands::label::list(repo.unwrap(), &issue_id)?;
+            }
+            LabelCommand::ListAll => {
+                info!(command = "label list-all");
+                commands::label::list_all(repo.unwrap())?;
             }
         },
     }
