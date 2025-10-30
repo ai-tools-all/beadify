@@ -8,11 +8,15 @@ beads init --prefix bd
 beads create --title "Fix sync" --data '{"kind":"bug","priority":1}'
 beads create --title "Add feature" --data '{"kind":"feature","priority":2}' --depends-on bd-01
 
-# Show issue details (including dependencies)
+# Show issue details (includes "Blocked By" dependencies)
 beads show bd-01
 
+# Manage dependencies
+beads dep add bd-02 bd-01          # bd-02 depends on bd-01
+beads dep remove bd-02 bd-01       # remove dependency
+
 # List cached issues (offline, from SQLite materialized view)
-beads list                    # shows only open issues
+beads list                    # shows only open issues (with blockers indented)
 beads list --all              # shows all issues including closed
 beads list --status in_progress  # filter by status
 
@@ -32,7 +36,36 @@ beads sync          # runs git pull → apply incremental log events → git pus
 beads sync --full   # full log replay into a fresh cache
 ```
 
-Key behavior reminders:
+## Output Format
+
+### List Format
+```
+   ID       Kind       Prio Title
+────────────────────────────────────────────────────────────────────────────────
+☐ bd-001   task       p1   Implement show command
+☐ bd-025   feature    p2   Implement beads dep command...
+    ↳ bd-001   task       p1 - Implement show command
+    ↳ bd-002   task       p2 - Update merge logic
+● bd-032   feature    p2   Implement beads dep add/remove commands
+```
+
+- `☐` = open/in-progress, `●` = closed
+- Dependencies shown indented with `↳` arrow
+
+### Show Format
+```
+ID:       bd-025
+Title:    Implement beads dep command...
+Status:   open
+Kind:     feature
+Priority: 2
+
+Blocked By:
+  ↳ bd-001 [open] p1 - Implement show command
+  ↳ bd-002 [open] p2 - Update merge logic
+```
+
+## Key Reminders
 
 - All mutations append to `.beads/events.jsonl` and update `.beads/beads.db` immediately (offline-first).
 - `beads sync` is the only command touching the network; it performs pull → reconcile → push.
