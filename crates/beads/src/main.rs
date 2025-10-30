@@ -76,6 +76,8 @@ enum Commands {
         #[arg(long)]
         title_only: bool,
     },
+    /// Show the next issue to work on, grouped by priority
+    Ready,
 }
 
 fn main() -> Result<()> {
@@ -127,6 +129,10 @@ fn main() -> Result<()> {
         } => {
             info!(command = "search", %query, kind = kind.as_deref(), status = status.as_deref(), priority, title_only);
             commands::search::run(repo.unwrap(), &query, kind, status, priority, title_only)?;
+        }
+        Commands::Ready => {
+            info!(command = "ready");
+            commands::ready::run(repo.unwrap())?;
         }
     }
 
