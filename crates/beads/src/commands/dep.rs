@@ -1,11 +1,19 @@
 use anyhow::Result;
 use beads_core::{add_issue_dependency, get_open_dependencies, get_dependents, get_issue, remove_issue_dependency, repo::BeadsRepo};
 
+fn status_indicator(status: &str) -> &'static str {
+    match status {
+        "closed" => "●",
+        _ => "○",
+    }
+}
+
 pub fn show(repo: BeadsRepo, issue_id: &str) -> Result<()> {
     let issue = get_issue(&repo, issue_id)?
         .ok_or_else(|| anyhow::anyhow!("Issue '{}' not found", issue_id))?;
     
-    println!("Dependencies for {} - {}", issue.id, issue.title);
+    let indicator = status_indicator(&issue.status);
+    println!("Dependencies for {} {} - {}", indicator, issue.id, issue.title);
     println!();
     
     // Show blockers (issues this depends on, filtered to open only)
@@ -14,7 +22,8 @@ pub fn show(repo: BeadsRepo, issue_id: &str) -> Result<()> {
         println!("Blockers (Issues this depends on):");
         for blocker_id in blockers {
             if let Ok(Some(blocker)) = get_issue(&repo, &blocker_id) {
-                println!("  ↳ {} [{}] p{} - {}", blocker_id, blocker.status, blocker.priority, blocker.title);
+                let blocker_indicator = status_indicator(&blocker.status);
+                println!("  ↳ {} {} p{} - {}", blocker_indicator, blocker_id, blocker.priority, blocker.title);
             } else {
                 println!("  ↳ {} [not found]", blocker_id);
             }
@@ -31,7 +40,8 @@ pub fn show(repo: BeadsRepo, issue_id: &str) -> Result<()> {
         println!("Dependents (Issues that depend on this):");
         for dependent_id in dependents {
             if let Ok(Some(dependent)) = get_issue(&repo, &dependent_id) {
-                println!("  ↳ {} [{}] p{} - {}", dependent_id, dependent.status, dependent.priority, dependent.title);
+                let dependent_indicator = status_indicator(&dependent.status);
+                println!("  ↳ {} {} p{} - {}", dependent_indicator, dependent_id, dependent.priority, dependent.title);
             } else {
                 println!("  ↳ {} [not found]", dependent_id);
             }
