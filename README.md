@@ -66,8 +66,6 @@ Blocked By:
   ↳ bd-002 [open] p2 - Update merge logic
 ```
 
-## LLM Agent Workflow Quick Reference
-
 ```bash
 # 1. Pick next issue
 beads ready
