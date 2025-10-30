@@ -47,6 +47,28 @@ pub fn upsert_issue(tx: &Transaction<'_>, issue: &Issue) -> Result<()> {
     Ok(())
 }
 
+pub fn get_issue(conn: &Connection, id: &str) -> Result<Option<Issue>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, title, kind, priority, status FROM issues WHERE id = ?1",
+    )?;
+    let issue = stmt
+        .query_row(params![id], |row| {
+            Ok(Issue {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                kind: row.get(2)?,
+                priority: row.get::<_, i64>(3)? as u32,
+                status: row.get(4)?,
+                description: None,
+                design: None,
+                acceptance_criteria: None,
+                notes: None,
+            })
+        })
+        .optional()?;
+    Ok(issue)
+}
+
 pub fn get_all_issues(conn: &Connection) -> Result<Vec<Issue>> {
     let mut stmt =
         conn.prepare("SELECT id, title, kind, priority, status FROM issues ORDER BY id ASC")?;
@@ -58,6 +80,10 @@ pub fn get_all_issues(conn: &Connection) -> Result<Vec<Issue>> {
                 kind: row.get(2)?,
                 priority: row.get::<_, i64>(3)? as u32,
                 status: row.get(4)?,
+                description: None,
+                design: None,
+                acceptance_criteria: None,
+                notes: None,
             })
         })?
         .collect::<std::result::Result<Vec<_>, _>>()?;

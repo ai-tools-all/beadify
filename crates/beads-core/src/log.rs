@@ -187,6 +187,10 @@ fn apply_event(tx: &Transaction<'_>, event: &Event) -> Result<()> {
                 kind: payload.kind,
                 priority: payload.priority,
                 status: payload.status.unwrap_or_else(|| "open".to_string()),
+                description: None,
+                design: None,
+                acceptance_criteria: None,
+                notes: None,
             };
             db::upsert_issue(tx, &issue)
         }

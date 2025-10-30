@@ -50,4 +50,8 @@ pub struct Issue {
     pub kind: String,
     pub priority: u32,
     pub status: String,
+    pub description: Option<String>,
+    pub design: Option<String>,
+    pub acceptance_criteria: Option<String>,
+    pub notes: Option<String>,
 }

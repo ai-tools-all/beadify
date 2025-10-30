@@ -8,10 +8,15 @@ pub use error::{BeadsError, Result};
 pub use model::{Event, Issue, IssueUpdate, OpKind};
 pub use repo::{find_repo, init_repo, BeadsRepo, BEADS_DIR, DB_FILE, EVENTS_FILE};
 
-use db::{apply_issue_update, create_schema, get_all_issues as db_get_all, set_meta, upsert_issue};
+use db::{apply_issue_update, create_schema, get_all_issues as db_get_all, get_issue as db_get_issue, set_meta, upsert_issue};
 use rusqlite::Connection;
 
-pub fn create_issue(repo: &BeadsRepo, title: &str, kind: &str, priority: u32) -> Result<Event> {
+pub fn create_issue(
+    repo: &BeadsRepo,
+    title: &str,
+    kind: &str,
+    priority: u32,
+) -> Result<Event> {
     let mut conn = repo.open_db()?;
     create_schema(&conn)?;
 
@@ -22,6 +27,10 @@ pub fn create_issue(repo: &BeadsRepo, title: &str, kind: &str, priority: u32) ->
         kind: kind.to_string(),
         priority,
         status: "open".to_string(),
+        description: None,
+        design: None,
+        acceptance_criteria: None,
+        notes: None,
     };
 
     let (event, new_offset) = log::append_create_event(repo, &conn, &issue)?;
@@ -52,6 +61,12 @@ pub fn update_issue(repo: &BeadsRepo, id: &str, update: IssueUpdate) -> Result<E
     tx.commit()?;
 
     Ok(event)
+}
+
+pub fn get_issue(repo: &BeadsRepo, id: &str) -> Result<Option<Issue>> {
+    let conn = repo.open_db()?;
+    create_schema(&conn)?;
+    db_get_issue(&conn, id)
 }
 
 pub fn get_all_issues(repo: &BeadsRepo) -> Result<Vec<Issue>> {

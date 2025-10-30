@@ -26,10 +26,22 @@ enum Commands {
     Create {
         #[arg(short, long)]
         title: String,
+        #[arg(long)]
+        description: Option<String>,
+        #[arg(long)]
+        design: Option<String>,
+        #[arg(long)]
+        acceptance_criteria: Option<String>,
+        #[arg(long)]
+        notes: Option<String>,
         #[arg(short, long, default_value = "task")]
         kind: String,
         #[arg(short, long, default_value_t = 2)]
         priority: u32,
+    },
+    /// Show issue details
+    Show {
+        id: String,
     },
     /// List all issues from the local cache
     List,
@@ -68,11 +80,19 @@ fn main() -> Result<()> {
         }
         Commands::Create {
             title,
+            description,
+            design,
+            acceptance_criteria,
+            notes,
             kind,
             priority,
         } => {
             info!(command = "create", %title, %kind, priority);
-            commands::create::run(repo.unwrap(), &title, &kind, priority)?;
+            commands::create::run(repo.unwrap(), &title, description, design, acceptance_criteria, notes, &kind, priority)?;
+        }
+        Commands::Show { id } => {
+            info!(command = "show", %id);
+            commands::show::run(repo.unwrap(), &id)?;
         }
         Commands::List => {
             info!(command = "list");
