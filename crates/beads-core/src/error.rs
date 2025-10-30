@@ -18,6 +18,10 @@ pub enum BeadsError {
     MissingConfig(&'static str),
     #[error("update requires at least one field")]
     EmptyUpdate,
+    #[error("blob not found: {0}")]
+    BlobNotFound(String),
+    #[error("invalid hash: {0}")]
+    InvalidHash(String),
     #[error("{0}")]
     Custom(String),
 }
