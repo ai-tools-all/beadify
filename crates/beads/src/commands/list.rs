@@ -1,5 +1,5 @@
 use anyhow::Result;
-use beads_core::{get_all_issues, get_dependencies, get_issue, repo::BeadsRepo};
+use beads_core::{get_all_issues, get_dependencies, get_issue, get_issue_labels, repo::BeadsRepo};
 
 fn status_indicator(status: &str) -> &'static str {
     match status {
@@ -8,7 +8,30 @@ fn status_indicator(status: &str) -> &'static str {
     }
 }
 
-pub fn run(repo: BeadsRepo, show_all: bool, status_filter: Option<String>, dep_graph: bool) -> Result<()> {
+fn parse_labels(label_str: &str) -> Vec<String> {
+    label_str.split(',').map(|s| s.trim().to_string()).collect()
+}
+
+fn issue_has_all_labels(repo: &BeadsRepo, issue_id: &str, required_labels: &[String]) -> Result<bool> {
+    let issue_labels = get_issue_labels(repo, issue_id)?;
+    let issue_label_names: Vec<String> = issue_labels.iter().map(|l| l.name.clone()).collect();
+    Ok(required_labels.iter().all(|label| issue_label_names.contains(label)))
+}
+
+fn issue_has_any_label(repo: &BeadsRepo, issue_id: &str, required_labels: &[String]) -> Result<bool> {
+    let issue_labels = get_issue_labels(repo, issue_id)?;
+    let issue_label_names: Vec<String> = issue_labels.iter().map(|l| l.name.clone()).collect();
+    Ok(required_labels.iter().any(|label| issue_label_names.contains(label)))
+}
+
+pub fn run(
+    repo: BeadsRepo,
+    show_all: bool,
+    status_filter: Option<String>,
+    dep_graph: bool,
+    label_filter: Option<String>,
+    label_any_filter: Option<String>,
+) -> Result<()> {
     let mut issues = get_all_issues(&repo)?;
     
     // Filter issues based on status
@@ -16,6 +39,22 @@ pub fn run(repo: BeadsRepo, show_all: bool, status_filter: Option<String>, dep_g
         issues.retain(|issue| issue.status == status);
     } else if !show_all {
         issues.retain(|issue| issue.status == "open");
+    }
+    
+    // Filter issues by labels (AND - must have ALL labels)
+    if let Some(label_str) = label_filter {
+        let required_labels = parse_labels(&label_str);
+        issues.retain(|issue| {
+            issue_has_all_labels(&repo, &issue.id, &required_labels).unwrap_or(false)
+        });
+    }
+    
+    // Filter issues by labels (OR - must have AT LEAST ONE label)
+    if let Some(label_str) = label_any_filter {
+        let required_labels = parse_labels(&label_str);
+        issues.retain(|issue| {
+            issue_has_any_label(&repo, &issue.id, &required_labels).unwrap_or(false)
+        });
     }
     
     if issues.is_empty() {
@@ -33,15 +72,29 @@ pub fn run(repo: BeadsRepo, show_all: bool, status_filter: Option<String>, dep_g
         }
     } else {
         // Table view (default)
-        println!("{:<2} {:<8} {:<10} {:<4} {}", " ", "ID", "Kind", "Prio", "Title");
-        println!("{}", "─".repeat(80));
+        println!("{:<2} {:<8} {:<10} {:<4} {:<20} {}", " ", "ID", "Kind", "Prio", "Labels", "Title");
+        println!("{}", "─".repeat(100));
         
         for issue in issues {
             let indicator = status_indicator(&issue.status);
             let priority_str = format!("p{}", issue.priority);
+            
+            // Get labels for this issue
+            let labels_str = match get_issue_labels(&repo, &issue.id) {
+                Ok(labels) => {
+                    let label_names: Vec<String> = labels.iter().map(|l| l.name.clone()).collect();
+                    if label_names.is_empty() {
+                        "-".to_string()
+                    } else {
+                        label_names.join(", ")
+                    }
+                }
+                Err(_) => "-".to_string(),
+            };
+            
             println!(
-                "{} {:<8} {:<10} {:<4} {}",
-                indicator, issue.id, issue.kind, priority_str, issue.title
+                "{} {:<8} {:<10} {:<4} {:<20} {}",
+                indicator, issue.id, issue.kind, priority_str, labels_str, issue.title
             );
             
             // Show dependencies/blockers if any

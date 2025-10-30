@@ -47,6 +47,12 @@ enum Commands {
         /// Show dependency tree graph view
         #[arg(long)]
         dep_graph: bool,
+        /// Filter by labels (AND - must have ALL specified labels)
+        #[arg(long)]
+        label: Option<String>,
+        /// Filter by labels (OR - must have AT LEAST ONE specified label)
+        #[arg(long)]
+        label_any: Option<String>,
     },
     /// Update an existing issue
     Update {
@@ -162,9 +168,11 @@ fn main() -> Result<()> {
             all,
             status,
             dep_graph,
+            label,
+            label_any,
         } => {
-            info!(command = "list", all, status = status.as_deref(), dep_graph);
-            commands::list::run(repo.unwrap(), all, status, dep_graph)?;
+            info!(command = "list", all, status = status.as_deref(), dep_graph, label = label.as_deref(), label_any = label_any.as_deref());
+            commands::list::run(repo.unwrap(), all, status, dep_graph, label, label_any)?;
         }
         Commands::Update {
             id,
