@@ -20,6 +20,9 @@ beads update bd-015 --status review
 
 # 5. After user testing/validation, mark as closed
 beads update bd-015 --status closed
+
+# 6. Commit only the files changed for this issue with the issue name in the commit message
+git commit <file1> <file2> ... -m "Close bd-015: [brief description of what was done]"
 ```
 
 **Note:** This workflow is **mandatory** for issues with `kind=feature`.

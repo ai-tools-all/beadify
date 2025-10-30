@@ -34,7 +34,14 @@ enum Commands {
         id: String,
     },
     /// List all issues from the local cache
-    List,
+    List {
+        /// Show all issues including closed (default: only open)
+        #[arg(long)]
+        all: bool,
+        /// Filter by status (open, in_progress, closed, etc.)
+        #[arg(long)]
+        status: Option<String>,
+    },
     /// Update an existing issue
     Update {
         id: String,
@@ -76,9 +83,9 @@ fn main() -> Result<()> {
             info!(command = "show", %id);
             commands::show::run(repo.unwrap(), &id)?;
         }
-        Commands::List => {
-            info!(command = "list");
-            commands::list::run(repo.unwrap())?;
+        Commands::List { all, status } => {
+            info!(command = "list", all, status = status.as_deref());
+            commands::list::run(repo.unwrap(), all, status)?;
         }
         Commands::Update {
             id,
