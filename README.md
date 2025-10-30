@@ -66,6 +66,29 @@ Blocked By:
   ↳ bd-002 [open] p2 - Update merge logic
 ```
 
+## LLM Agent Workflow Quick Reference
+
+```bash
+# 1. Pick next issue
+beads ready
+
+# 2. Start working
+beads update bd-041 --status in_progress
+
+# 3. View issue & blockers
+beads show bd-041
+
+# 4. Check dependencies
+beads dep show bd-041
+
+# 5. When done, commit
+git add src/file.rs
+git commit -m "fix(bd-041): your description"
+
+# 6. Mark as done
+beads update bd-041 --status closed
+```
+
 ## Git Commit Guidelines
 
 When committing changes for an issue:
@@ -96,3 +119,4 @@ git commit -m "refactor(bd-018): simplify event parsing logic"
 - All mutations append to `.beads/events.jsonl` and update `.beads/beads.db` immediately (offline-first).
 - `beads sync` is the only command touching the network; it performs pull → reconcile → push.
 - The merge driver binary `beads-merge-driver` must be configured as `merge=beadslog` for `*.jsonl` files in `.gitattributes`.
+- **Closed dependencies are filtered** from all blocker displays (`beads show`, `beads dep show`, `beads list`) since closed issues don't block progress.
