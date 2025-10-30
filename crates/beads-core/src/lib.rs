@@ -5,11 +5,11 @@ pub mod model;
 pub mod repo;
 
 pub use error::{BeadsError, Result};
-pub use model::{Event, Issue, IssueUpdate, OpKind};
+pub use model::{Event, Issue, IssueUpdate, Label, OpKind};
 pub use repo::{find_repo, init_repo, BeadsRepo, BEADS_DIR, DB_FILE, EVENTS_FILE};
 
-use db::{add_dependency, apply_issue_update, create_schema, get_all_issues as db_get_all, get_dependencies as db_get_deps, get_issue as db_get_issue, remove_dependency, set_meta, upsert_issue};
-use rusqlite::Connection;
+use db::{add_dependency, add_issue_label, apply_issue_update, create_schema, get_all_issues as db_get_all, get_all_labels as db_get_all_labels, get_dependencies as db_get_deps, get_issue as db_get_issue, get_issue_labels as db_get_issue_labels, get_issues_by_label as db_get_issues_by_label, remove_dependency, remove_issue_label, set_meta, upsert_issue};
+use rusqlite::{Connection, OptionalExtension};
 
 pub fn create_issue(
     repo: &BeadsRepo,
@@ -134,6 +134,105 @@ pub fn sync_repo(repo: &BeadsRepo, full: bool) -> Result<usize> {
     })?;
 
     Ok(applied)
+}
+
+pub fn add_label_to_issue(repo: &BeadsRepo, issue_id: &str, label_name: &str) -> Result<Label> {
+    // Validate issue exists
+    if get_issue(repo, issue_id)?.is_none() {
+        return Err(BeadsError::Custom(format!("Issue '{}' not found", issue_id)));
+    }
+
+    let mut conn = repo.open_db()?;
+    create_schema(&conn)?;
+    
+    // Check if label already exists by name
+    let existing_label = {
+        let mut stmt = conn.prepare(
+            "SELECT id, name, color, description FROM labels WHERE name = ?1"
+        )?;
+        stmt.query_row(rusqlite::params![label_name], |row| {
+            Ok(Label {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                color: row.get(2)?,
+                description: row.get(3)?,
+            })
+        }).optional()?
+    };
+    
+    // Create label if doesn't exist
+    let label = if let Some(label) = existing_label {
+        label
+    } else {
+        let label_id = ulid::Ulid::new().to_string();
+        let new_label = Label {
+            id: label_id,
+            name: label_name.to_string(),
+            color: None,
+            description: None,
+        };
+        
+        let tx = conn.transaction()?;
+        db::create_label(&tx, &new_label)?;
+        tx.commit()?;
+        
+        new_label
+    };
+    
+    // Add label to issue
+    let tx = conn.transaction()?;
+    add_issue_label(&tx, issue_id, &label.id)?;
+    tx.commit()?;
+    
+    Ok(label)
+}
+
+pub fn remove_label_from_issue(repo: &BeadsRepo, issue_id: &str, label_name: &str) -> Result<()> {
+    let mut conn = repo.open_db()?;
+    create_schema(&conn)?;
+    
+    // Find label by name
+    let label_id: String = {
+        let mut stmt = conn.prepare(
+            "SELECT id FROM labels WHERE name = ?1"
+        )?;
+        stmt.query_row(rusqlite::params![label_name], |row| row.get(0))
+            .map_err(|_| BeadsError::Custom(format!("Label '{}' not found", label_name)))?
+    };
+    
+    let tx = conn.transaction()?;
+    remove_issue_label(&tx, issue_id, &label_id)?;
+    tx.commit()?;
+    
+    Ok(())
+}
+
+pub fn get_issue_labels(repo: &BeadsRepo, issue_id: &str) -> Result<Vec<Label>> {
+    let conn = repo.open_db()?;
+    create_schema(&conn)?;
+    db_get_issue_labels(&conn, issue_id)
+}
+
+pub fn get_all_labels(repo: &BeadsRepo) -> Result<Vec<Label>> {
+    let conn = repo.open_db()?;
+    create_schema(&conn)?;
+    db_get_all_labels(&conn)
+}
+
+pub fn get_issues_by_label(repo: &BeadsRepo, label_name: &str) -> Result<Vec<String>> {
+    let conn = repo.open_db()?;
+    create_schema(&conn)?;
+    
+    // Find label by name
+    let label_id: String = {
+        let mut stmt = conn.prepare(
+            "SELECT id FROM labels WHERE name = ?1"
+        )?;
+        stmt.query_row(rusqlite::params![label_name], |row| row.get(0))
+            .map_err(|_| BeadsError::Custom(format!("Label '{}' not found", label_name)))?
+    };
+    
+    db_get_issues_by_label(&conn, &label_id)
 }
 
 fn next_issue_id(conn: &mut Connection) -> Result<String> {

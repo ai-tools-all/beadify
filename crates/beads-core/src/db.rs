@@ -2,7 +2,7 @@ use rusqlite::{params, Connection, OptionalExtension, Transaction};
 
 use crate::{
     error::Result,
-    model::{Issue, IssueUpdate},
+    model::{Issue, IssueUpdate, Label},
 };
 
 pub fn create_schema(conn: &Connection) -> Result<()> {
@@ -22,6 +22,21 @@ pub fn create_schema(conn: &Connection) -> Result<()> {
             PRIMARY KEY (issue_id, depends_on_id),
             FOREIGN KEY (issue_id) REFERENCES issues(id) ON DELETE CASCADE,
             FOREIGN KEY (depends_on_id) REFERENCES issues(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS labels (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            color TEXT,
+            description TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS issue_labels (
+            issue_id TEXT NOT NULL,
+            label_id TEXT NOT NULL,
+            PRIMARY KEY (issue_id, label_id),
+            FOREIGN KEY (issue_id) REFERENCES issues(id) ON DELETE CASCADE,
+            FOREIGN KEY (label_id) REFERENCES labels(id) ON DELETE CASCADE
         );
 
         CREATE TABLE IF NOT EXISTS _meta (
@@ -183,4 +198,112 @@ pub fn apply_issue_update(tx: &Transaction<'_>, id: &str, update: &IssueUpdate) 
         )?;
     }
     Ok(())
+}
+
+pub fn create_label(tx: &Transaction<'_>, label: &Label) -> Result<()> {
+    tx.execute(
+        "INSERT INTO labels (id, name, color, description) VALUES (?1, ?2, ?3, ?4)",
+        params![label.id, label.name, label.color, label.description],
+    )?;
+    Ok(())
+}
+
+pub fn get_label(conn: &Connection, id: &str) -> Result<Option<Label>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, name, color, description FROM labels WHERE id = ?1",
+    )?;
+    let label = stmt
+        .query_row(params![id], |row| {
+            Ok(Label {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                color: row.get(2)?,
+                description: row.get(3)?,
+            })
+        })
+        .optional()?;
+    Ok(label)
+}
+
+pub fn get_all_labels(conn: &Connection) -> Result<Vec<Label>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, name, color, description FROM labels ORDER BY name ASC"
+    )?;
+    let labels = stmt
+        .query_map([], |row| {
+            Ok(Label {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                color: row.get(2)?,
+                description: row.get(3)?,
+            })
+        })?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    Ok(labels)
+}
+
+pub fn delete_label(tx: &Transaction<'_>, id: &str) -> Result<()> {
+    let rows = tx.execute("DELETE FROM labels WHERE id = ?1", params![id])?;
+    if rows == 0 {
+        return Err(crate::error::BeadsError::Custom(format!(
+            "Label not found: {}",
+            id
+        )));
+    }
+    Ok(())
+}
+
+pub fn add_issue_label(tx: &Transaction<'_>, issue_id: &str, label_id: &str) -> Result<()> {
+    tx.execute(
+        "INSERT OR IGNORE INTO issue_labels (issue_id, label_id) VALUES (?1, ?2)",
+        params![issue_id, label_id],
+    )?;
+    Ok(())
+}
+
+pub fn remove_issue_label(tx: &Transaction<'_>, issue_id: &str, label_id: &str) -> Result<()> {
+    let rows = tx.execute(
+        "DELETE FROM issue_labels WHERE issue_id = ?1 AND label_id = ?2",
+        params![issue_id, label_id],
+    )?;
+    if rows == 0 {
+        return Err(crate::error::BeadsError::Custom(format!(
+            "Issue label not found: {} on {}",
+            label_id, issue_id
+        )));
+    }
+    Ok(())
+}
+
+pub fn get_issue_labels(conn: &Connection, issue_id: &str) -> Result<Vec<Label>> {
+    let mut stmt = conn.prepare(
+        r#"
+        SELECT l.id, l.name, l.color, l.description
+        FROM labels l
+        JOIN issue_labels il ON l.id = il.label_id
+        WHERE il.issue_id = ?1
+        ORDER BY l.name ASC
+        "#
+    )?;
+    let labels = stmt
+        .query_map(params![issue_id], |row| {
+            Ok(Label {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                color: row.get(2)?,
+                description: row.get(3)?,
+            })
+        })?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    Ok(labels)
+}
+
+pub fn get_issues_by_label(conn: &Connection, label_id: &str) -> Result<Vec<String>> {
+    let mut stmt = conn.prepare(
+        "SELECT issue_id FROM issue_labels WHERE label_id = ?1 ORDER BY issue_id"
+    )?;
+    let issues = stmt
+        .query_map(params![label_id], |row| row.get(0))?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    Ok(issues)
 }

@@ -55,3 +55,11 @@ pub struct Issue {
     pub acceptance_criteria: Option<String>,
     pub notes: Option<String>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Label {
+    pub id: String,
+    pub name: String,
+    pub color: Option<String>,
+    pub description: Option<String>,
+}
