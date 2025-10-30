@@ -18,6 +18,8 @@ pub struct IssueUpdate {
     pub acceptance_criteria: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub notes: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub data: Option<serde_json::Value>,
 }
 
 impl IssueUpdate {
@@ -30,6 +32,7 @@ impl IssueUpdate {
             && self.design.is_none()
             && self.acceptance_criteria.is_none()
             && self.notes.is_none()
+            && self.data.is_none()
     }
 }
 

@@ -245,6 +245,37 @@ pub fn apply_issue_update(tx: &Transaction<'_>, id: &str, update: &IssueUpdate) 
             params![status, id],
         )?;
     }
+    if let Some(description) = &update.description {
+        tx.execute(
+            "UPDATE issues SET description = ?1 WHERE id = ?2",
+            params![description, id],
+        )?;
+    }
+    if let Some(design) = &update.design {
+        tx.execute(
+            "UPDATE issues SET design = ?1 WHERE id = ?2",
+            params![design, id],
+        )?;
+    }
+    if let Some(acceptance_criteria) = &update.acceptance_criteria {
+        tx.execute(
+            "UPDATE issues SET acceptance_criteria = ?1 WHERE id = ?2",
+            params![acceptance_criteria, id],
+        )?;
+    }
+    if let Some(notes) = &update.notes {
+        tx.execute(
+            "UPDATE issues SET notes = ?1 WHERE id = ?2",
+            params![notes, id],
+        )?;
+    }
+    if let Some(data) = &update.data {
+        let data_json = serde_json::to_string(data)?;
+        tx.execute(
+            "UPDATE issues SET data = ?1 WHERE id = ?2",
+            params![data_json, id],
+        )?;
+    }
     Ok(())
 }
 

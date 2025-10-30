@@ -280,6 +280,74 @@ pub fn get_issues_by_label(repo: &BeadsRepo, label_name: &str) -> Result<Vec<Str
     db_get_issues_by_label(&conn, &label_id)
 }
 
+/// Add or update a document attachment to an issue.
+/// The document is stored in the blob store and its hash is added to the issue's data field.
+pub fn add_document_to_issue(
+    repo: &BeadsRepo,
+    issue_id: &str,
+    doc_name: &str,
+    content: &[u8],
+) -> Result<()> {
+    // Write content to blob store
+    let hash = blob::write_blob(repo, content)?;
+
+    // Get current issue to retrieve existing data
+    let issue = get_issue(repo, issue_id)?.ok_or_else(|| {
+        BeadsError::Custom(format!("Issue '{}' not found", issue_id))
+    })?;
+
+    // Parse or create documents map
+    let mut data = issue.data.unwrap_or_else(|| serde_json::json!({}));
+    let documents = data
+        .as_object_mut()
+        .ok_or_else(|| BeadsError::Custom("Issue data is not a JSON object".to_string()))?
+        .entry("documents")
+        .or_insert_with(|| serde_json::json!({}));
+
+    let documents_map = documents
+        .as_object_mut()
+        .ok_or_else(|| BeadsError::Custom("Documents field is not a JSON object".to_string()))?;
+
+    // Add or update document hash
+    documents_map.insert(doc_name.to_string(), serde_json::json!(hash));
+
+    // Update issue with new data
+    let update = IssueUpdate {
+        data: Some(data),
+        ..Default::default()
+    };
+
+    update_issue(repo, issue_id, update)?;
+
+    Ok(())
+}
+
+/// Get all documents attached to an issue.
+/// Returns a map of document name to blob hash.
+pub fn get_issue_documents(repo: &BeadsRepo, issue_id: &str) -> Result<std::collections::HashMap<String, String>> {
+    use std::collections::HashMap;
+
+    let issue = get_issue(repo, issue_id)?.ok_or_else(|| {
+        BeadsError::Custom(format!("Issue '{}' not found", issue_id))
+    })?;
+
+    let mut documents = HashMap::new();
+
+    if let Some(data) = issue.data {
+        if let Some(docs_value) = data.get("documents") {
+            if let Some(docs_obj) = docs_value.as_object() {
+                for (name, hash_value) in docs_obj {
+                    if let Some(hash) = hash_value.as_str() {
+                        documents.insert(name.clone(), hash.to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(documents)
+}
+
 fn next_issue_id(conn: &mut Connection) -> Result<String> {
     let tx = conn.transaction()?;
     let prefix = db::get_meta(&tx, "id_prefix")?.ok_or(BeadsError::MissingConfig("id_prefix"))?;
