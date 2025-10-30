@@ -59,6 +59,23 @@ enum Commands {
         #[arg(long)]
         full: bool,
     },
+    /// Search issues by text query with optional filters
+    Search {
+        /// Search query string
+        query: String,
+        /// Filter by issue kind (feature, task, bug, etc.)
+        #[arg(long)]
+        kind: Option<String>,
+        /// Filter by status (open, in_progress, closed, etc.)
+        #[arg(long)]
+        status: Option<String>,
+        /// Filter by priority level
+        #[arg(long)]
+        priority: Option<u32>,
+        /// Search only in titles, not in descriptions
+        #[arg(long)]
+        title_only: bool,
+    },
 }
 
 fn main() -> Result<()> {
@@ -100,6 +117,16 @@ fn main() -> Result<()> {
         Commands::Sync { full } => {
             info!(command = "sync", full);
             commands::sync::run(repo.unwrap(), full)?;
+        }
+        Commands::Search {
+            query,
+            kind,
+            status,
+            priority,
+            title_only,
+        } => {
+            info!(command = "search", %query, kind = kind.as_deref(), status = status.as_deref(), priority, title_only);
+            commands::search::run(repo.unwrap(), &query, kind, status, priority, title_only)?;
         }
     }
 
