@@ -4,14 +4,6 @@ use serde::Deserialize;
 
 #[derive(Deserialize)]
 struct IssueData {
-    #[serde(default)]
-    description: Option<String>,
-    #[serde(default)]
-    design: Option<String>,
-    #[serde(default)]
-    acceptance_criteria: Option<String>,
-    #[serde(default)]
-    notes: Option<String>,
     #[serde(default = "default_kind")]
     kind: String,
     #[serde(default = "default_priority")]
