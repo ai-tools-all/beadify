@@ -32,6 +32,13 @@ beads ready
 # Update fields on an existing issue
 beads update bd-01 --status in_progress --priority 3 --title "Refine sync driver"
 
+# Delete issues (soft delete with status="deleted")
+beads delete bd-01                              # preview mode (shows impact)
+beads delete bd-01 --force                      # confirm deletion
+beads delete bd-01 bd-02 bd-03 --force          # batch deletion
+beads delete --from-file deletions.txt --force  # delete from file
+beads delete bd-01 --cascade --force            # delete with dependents
+
 # Reconcile with git remote and apply new events
 beads sync          # runs git pull → apply incremental log events → git push
 beads sync --full   # full log replay into a fresh cache
@@ -137,6 +144,55 @@ beads doc list bd-042
 - `.beads/docs/` is temporary and gitignored (workspace only)
 - Same content = same hash = automatic deduplication
 - Document history preserved through event log
+
+## Issue Deletion (Soft Delete)
+
+Beads implements soft deletion - issues are marked with `status="deleted"` in events.jsonl and excluded from the database.
+
+### Preview Mode (Default)
+```bash
+beads delete bd-042
+# Shows impact: issues to delete, dependents, text references
+# Requires --force to confirm
+```
+
+### Single Issue Deletion
+```bash
+beads delete bd-042 --force
+# Sets status="deleted" in events.jsonl
+# Removes from SQLite cache
+# Updates text references: bd-042 → [deleted:bd-042]
+```
+
+### Batch Deletion
+```bash
+# Delete multiple issues
+beads delete bd-001 bd-002 bd-003 --force
+
+# Delete from file (one ID per line, # for comments)
+echo "bd-001" > to-delete.txt
+echo "bd-002" >> to-delete.txt
+beads delete --from-file to-delete.txt --force
+```
+
+### Cascade Deletion
+```bash
+# Recursively delete all dependent issues
+beads delete bd-042 --cascade --force
+# Prompts for confirmation
+# Deletes in topological order (leaves first)
+```
+
+**How it works:**
+- Issues remain in `events.jsonl` with `status="deleted"` (audit trail)
+- Removed from SQLite during event replay
+- Text references updated to `[deleted:ID]` format
+- Dependencies and labels automatically cleaned up
+- Blobs remain in storage (same content might be reused)
+
+**Future recovery:**
+- Can implement `beads undelete` to restore issues
+- Compaction can physically remove after retention period
 
 ## Git Commit Guidelines
 
