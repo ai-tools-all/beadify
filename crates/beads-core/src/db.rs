@@ -220,6 +220,55 @@ pub fn clear_state(tx: &Transaction<'_>) -> Result<()> {
     Ok(())
 }
 
+/// Delete issue and all related data from SQLite
+/// Note: This is for removing from the local cache only
+/// The issue still exists in events.jsonl with status="deleted"
+pub fn delete_issue(tx: &Transaction<'_>, issue_id: &str) -> Result<()> {
+    // Dependencies and issue_labels automatically deleted by CASCADE
+    tx.execute("DELETE FROM issues WHERE id = ?1", params![issue_id])?;
+    Ok(())
+}
+
+/// Update text references to deleted issues
+/// Replace "bd-001" with "[deleted:bd-001]" in all text fields
+pub fn update_text_references(tx: &Transaction<'_>, deleted_id: &str) -> Result<usize> {
+    let replacement = format!("[deleted:{}]", deleted_id);
+    let search_pattern = format!("%{}%", deleted_id);
+    
+    let mut total_updated = 0;
+    
+    // Update title field
+    let updated = tx.execute(
+        "UPDATE issues SET title = REPLACE(title, ?1, ?2) WHERE title LIKE ?3",
+        params![deleted_id, &replacement, &search_pattern],
+    )?;
+    total_updated += updated;
+    
+    // Update data field (JSON text)
+    let updated = tx.execute(
+        "UPDATE issues SET data = REPLACE(data, ?1, ?2) WHERE data IS NOT NULL AND data LIKE ?3",
+        params![deleted_id, &replacement, &search_pattern],
+    )?;
+    total_updated += updated;
+    
+    Ok(total_updated)
+}
+
+/// Check if an issue is deleted (by checking if it exists in SQLite)
+/// Issues with status="deleted" are not loaded into SQLite
+pub fn is_issue_deleted(conn: &Connection, issue_id: &str) -> Result<bool> {
+    let exists: bool = conn
+        .query_row(
+            "SELECT 1 FROM issues WHERE id = ?1",
+            params![issue_id],
+            |_| Ok(true),
+        )
+        .optional()?
+        .unwrap_or(false);
+    
+    Ok(!exists)
+}
+
 pub fn apply_issue_update(tx: &Transaction<'_>, id: &str, update: &IssueUpdate) -> Result<()> {
     if let Some(title) = &update.title {
         tx.execute(

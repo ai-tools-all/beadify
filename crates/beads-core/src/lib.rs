@@ -9,7 +9,7 @@ pub use error::{BeadsError, Result};
 pub use model::{Event, Issue, IssueUpdate, Label, OpKind};
 pub use repo::{find_repo, init_repo, BeadsRepo, BEADS_DIR, DB_FILE, EVENTS_FILE};
 
-use db::{add_dependency, add_issue_label, apply_issue_update, create_schema, get_all_issues as db_get_all, get_all_labels as db_get_all_labels, get_dependencies as db_get_deps, get_dependents as db_get_dependents, get_open_dependencies as db_get_open_deps, get_issue as db_get_issue, get_issue_labels as db_get_issue_labels, get_issues_by_label as db_get_issues_by_label, remove_dependency, remove_issue_label, set_meta, upsert_issue};
+use db::{add_dependency, add_issue_label, apply_issue_update, create_schema, delete_issue as db_delete_issue, get_all_issues as db_get_all, get_all_labels as db_get_all_labels, get_dependencies as db_get_deps, get_dependents as db_get_dependents, get_open_dependencies as db_get_open_deps, get_issue as db_get_issue, get_issue_labels as db_get_issue_labels, get_issues_by_label as db_get_issues_by_label, is_issue_deleted, remove_dependency, remove_issue_label, set_meta, update_text_references, upsert_issue};
 use rusqlite::{Connection, OptionalExtension};
 
 fn validate_label_name(name: &str) -> Result<()> {
