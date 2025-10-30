@@ -8,7 +8,7 @@ pub use error::{BeadsError, Result};
 pub use model::{Event, Issue, IssueUpdate, OpKind};
 pub use repo::{find_repo, init_repo, BeadsRepo, BEADS_DIR, DB_FILE, EVENTS_FILE};
 
-use db::{add_dependency, apply_issue_update, create_schema, get_all_issues as db_get_all, get_dependencies as db_get_deps, get_issue as db_get_issue, set_meta, upsert_issue};
+use db::{add_dependency, apply_issue_update, create_schema, get_all_issues as db_get_all, get_dependencies as db_get_deps, get_issue as db_get_issue, remove_dependency, set_meta, upsert_issue};
 use rusqlite::Connection;
 
 pub fn create_issue(
@@ -55,6 +55,41 @@ pub fn get_dependencies(repo: &BeadsRepo, issue_id: &str) -> Result<Vec<String>>
     let conn = repo.open_db()?;
     create_schema(&conn)?;
     db_get_deps(&conn, issue_id)
+}
+
+pub fn add_issue_dependency(repo: &BeadsRepo, issue_id: &str, depends_on_id: &str) -> Result<()> {
+    // Validate both issues exist
+    if get_issue(repo, issue_id)?.is_none() {
+        return Err(BeadsError::Custom(format!("Issue '{}' not found", issue_id)));
+    }
+    if get_issue(repo, depends_on_id)?.is_none() {
+        return Err(BeadsError::Custom(format!("Issue '{}' not found", depends_on_id)));
+    }
+    
+    // Prevent self-dependency
+    if issue_id == depends_on_id {
+        return Err(BeadsError::Custom("An issue cannot depend on itself".to_string()));
+    }
+    
+    let mut conn = repo.open_db()?;
+    create_schema(&conn)?;
+    
+    let tx = conn.transaction()?;
+    add_dependency(&tx, issue_id, depends_on_id)?;
+    tx.commit()?;
+    
+    Ok(())
+}
+
+pub fn remove_issue_dependency(repo: &BeadsRepo, issue_id: &str, depends_on_id: &str) -> Result<()> {
+    let mut conn = repo.open_db()?;
+    create_schema(&conn)?;
+    
+    let tx = conn.transaction()?;
+    remove_dependency(&tx, issue_id, depends_on_id)?;
+    tx.commit()?;
+    
+    Ok(())
 }
 
 pub fn update_issue(repo: &BeadsRepo, id: &str, update: IssueUpdate) -> Result<Event> {

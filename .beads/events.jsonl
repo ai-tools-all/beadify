@@ -42,3 +42,15 @@
 {"event_id":"01K8VFT7HXJVXM20E6HZQG9K1N","ts":"2025-10-30T21:19:09.373Z","op":"create","id":"bd-029","actor":"abhishek","data":{"kind":"feature","priority":1,"status":"open","title":"Feature that depends on bd-001 and bd-002"}}
 {"event_id":"01K8VFTJM58GHD2KFWY6DS01Q3","ts":"2025-10-30T21:19:20.709Z","op":"create","id":"bd-030","actor":"abhishek","data":{"kind":"task","priority":2,"status":"open","title":"Another feature that depends on bd-003"}}
 {"event_id":"01K8VFVC9PJGWDHPNHTVTJXM4K","ts":"2025-10-30T21:19:46.998Z","op":"create","id":"bd-031","actor":"abhishek","data":{"kind":"feature","priority":2,"status":"open","title":"Complex feature with 3 deps"}}
+{"event_id":"01K8VFYGC4S306N3B7BZ4S54EW","ts":"2025-10-30T21:21:29.476Z","op":"update","id":"bd-029","actor":"abhishek","data":{"status":"closed"}}
+{"event_id":"01K8VFYGEMG9DJ8V55FN2K3P5S","ts":"2025-10-30T21:21:29.556Z","op":"update","id":"bd-030","actor":"abhishek","data":{"status":"closed"}}
+{"event_id":"01K8VFYGH0MS6W8K878136RT8A","ts":"2025-10-30T21:21:29.632Z","op":"update","id":"bd-031","actor":"abhishek","data":{"status":"closed"}}
+{"event_id":"01K8VG1YQPF4Z8A46G8285RE51","ts":"2025-10-30T21:23:22.487Z","op":"create","id":"bd-032","actor":"abhishek","data":{"kind":"feature","priority":2,"status":"open","title":"Implement beads dep add/remove commands"}}
+{"event_id":"01K8VG1YTBD0M04W43Q0B1BJFP","ts":"2025-10-30T21:23:22.571Z","op":"create","id":"bd-033","actor":"abhishek","data":{"kind":"feature","priority":2,"status":"open","title":"Display dependencies in beads list and show commands"}}
+{"event_id":"01K8VG25S7XCZ2GYAMZR3G8T7J","ts":"2025-10-30T21:23:29.703Z","op":"update","id":"bd-021","actor":"abhishek","data":{"status":"closed"}}
+{"event_id":"01K8VG25VH1YBJE9138ESZZC3W","ts":"2025-10-30T21:23:29.778Z","op":"update","id":"bd-022","actor":"abhishek","data":{"status":"closed"}}
+{"event_id":"01K8VG25XNVEDC246NYANBP2ZW","ts":"2025-10-30T21:23:29.845Z","op":"update","id":"bd-023","actor":"abhishek","data":{"status":"closed"}}
+{"event_id":"01K8VG25ZVT1QK9AZPCAZTYGHV","ts":"2025-10-30T21:23:29.915Z","op":"update","id":"bd-027","actor":"abhishek","data":{"status":"closed"}}
+{"event_id":"01K8VG26216QW2PKY62BHPPA4G","ts":"2025-10-30T21:23:29.985Z","op":"update","id":"bd-028","actor":"abhishek","data":{"status":"closed"}}
+{"event_id":"01K8VG5Q1PA607DSQA3GWME826","ts":"2025-10-30T21:25:25.686Z","op":"update","id":"bd-032","actor":"abhishek","data":{"status":"in_progress"}}
+{"event_id":"01K8VG9NQAWRRNY8B04D2AXS07","ts":"2025-10-30T21:27:35.402Z","op":"update","id":"bd-032","actor":"abhishek","data":{"status":"closed"}}

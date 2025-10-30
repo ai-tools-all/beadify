@@ -81,6 +81,27 @@ enum Commands {
     },
     /// Show the next issue to work on, grouped by priority
     Ready,
+    /// Manage issue dependencies
+    #[command(subcommand)]
+    Dep(DepCommand),
+}
+
+#[derive(Subcommand)]
+enum DepCommand {
+    /// Add a dependency: this issue depends on another
+    Add {
+        /// The issue that depends on another
+        issue_id: String,
+        /// The issue it depends on (blocker)
+        depends_on_id: String,
+    },
+    /// Remove a dependency
+    Remove {
+        /// The issue with the dependency
+        issue_id: String,
+        /// The dependency to remove
+        depends_on_id: String,
+    },
 }
 
 fn main() -> Result<()> {
@@ -137,6 +158,22 @@ fn main() -> Result<()> {
             info!(command = "ready");
             commands::ready::run(repo.unwrap())?;
         }
+        Commands::Dep(dep_cmd) => match dep_cmd {
+            DepCommand::Add {
+                issue_id,
+                depends_on_id,
+            } => {
+                info!(command = "dep add", %issue_id, %depends_on_id);
+                commands::dep::add(repo.unwrap(), &issue_id, &depends_on_id)?;
+            }
+            DepCommand::Remove {
+                issue_id,
+                depends_on_id,
+            } => {
+                info!(command = "dep remove", %issue_id, %depends_on_id);
+                commands::dep::remove(repo.unwrap(), &issue_id, &depends_on_id)?;
+            }
+        },
     }
 
     Ok(())

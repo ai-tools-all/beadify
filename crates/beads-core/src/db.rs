@@ -138,6 +138,20 @@ pub fn get_dependencies(conn: &Connection, issue_id: &str) -> Result<Vec<String>
     Ok(deps)
 }
 
+pub fn remove_dependency(tx: &Transaction<'_>, issue_id: &str, depends_on_id: &str) -> Result<()> {
+    let rows = tx.execute(
+        "DELETE FROM dependencies WHERE issue_id = ?1 AND depends_on_id = ?2",
+        params![issue_id, depends_on_id],
+    )?;
+    if rows == 0 {
+        return Err(crate::error::BeadsError::Custom(format!(
+            "Dependency not found: {} does not depend on {}",
+            issue_id, depends_on_id
+        )));
+    }
+    Ok(())
+}
+
 pub fn clear_state(tx: &Transaction<'_>) -> Result<()> {
     tx.execute("DELETE FROM issues", [])?;
     Ok(())

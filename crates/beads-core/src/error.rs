@@ -18,6 +18,8 @@ pub enum BeadsError {
     MissingConfig(&'static str),
     #[error("update requires at least one field")]
     EmptyUpdate,
+    #[error("{0}")]
+    Custom(String),
 }
 
 pub type Result<T> = std::result::Result<T, BeadsError>;
