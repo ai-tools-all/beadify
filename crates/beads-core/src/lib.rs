@@ -9,7 +9,7 @@ pub use error::{BeadsError, Result};
 pub use model::{Event, Issue, IssueUpdate, Label, OpKind};
 pub use repo::{find_repo, init_repo, BeadsRepo, BEADS_DIR, DB_FILE, EVENTS_FILE};
 
-use db::{add_dependency, add_issue_label, apply_issue_update, create_schema, delete_issue as db_delete_issue, get_all_issues as db_get_all, get_all_labels as db_get_all_labels, get_dependencies as db_get_deps, get_dependents as db_get_dependents, get_open_dependencies as db_get_open_deps, get_issue as db_get_issue, get_issue_labels as db_get_issue_labels, get_issues_by_label as db_get_issues_by_label, is_issue_deleted, remove_dependency, remove_issue_label, set_meta, update_text_references, upsert_issue};
+use db::{add_dependency, add_issue_label, apply_issue_update, create_schema, delete_issue as db_delete_issue, get_all_issues as db_get_all, get_all_labels as db_get_all_labels, get_dependencies as db_get_deps, get_dependents as db_get_dependents, get_open_dependencies as db_get_open_deps, get_issue as db_get_issue, get_issue_labels as db_get_issue_labels, get_issues_by_label as db_get_issues_by_label, remove_dependency, remove_issue_label, set_meta, update_text_references, upsert_issue};
 use rusqlite::{Connection, OptionalExtension};
 
 fn validate_label_name(name: &str) -> Result<()> {
@@ -346,6 +346,222 @@ pub fn get_issue_documents(repo: &BeadsRepo, issue_id: &str) -> Result<std::coll
     }
 
     Ok(documents)
+}
+
+/// Delete a single issue by setting status="deleted"
+pub fn delete_issue(repo: &BeadsRepo, issue_id: &str) -> Result<DeleteResult> {
+    let mut conn = repo.open_db()?;
+    create_schema(&conn)?;
+
+    // Check if issue exists and is not already deleted
+    let issue = get_issue(repo, issue_id)?.ok_or_else(|| 
+        BeadsError::Custom(format!("Issue '{}' not found or already deleted", issue_id))
+    )?;
+
+    // Get dependents (issues that depend on this)
+    let dependents = get_dependents(repo, issue_id)?;
+
+    // Create update event with status="deleted"
+    let update = IssueUpdate {
+        status: Some("deleted".to_string()),
+        ..Default::default()
+    };
+    
+    let (event, new_offset) = log::append_update_event(repo, &conn, issue_id, &update)?;
+
+    // Apply deletion in transaction
+    let tx = conn.transaction()?;
+    db_delete_issue(&tx, issue_id)?;
+    let refs_updated = update_text_references(&tx, issue_id)?;
+    set_meta(&tx, "last_event_id", event.event_id.clone())?;
+    set_meta(&tx, "last_processed_offset", new_offset.to_string())?;
+    tx.commit()?;
+
+    Ok(DeleteResult {
+        issue_id: issue_id.to_string(),
+        title: issue.title,
+        dependents,
+        references_updated: refs_updated,
+    })
+}
+
+/// Get issues that would be affected by deletion (for preview)
+pub fn get_delete_impact(repo: &BeadsRepo, issue_id: &str, cascade: bool) -> Result<DeleteImpact> {
+    let issue = get_issue(repo, issue_id)?.ok_or_else(|| 
+        BeadsError::Custom(format!("Issue '{}' not found or already deleted", issue_id))
+    )?;
+
+    let dependents = get_dependents(repo, issue_id)?;
+    let text_refs = find_text_references(repo, issue_id)?;
+
+    let mut all_issues = vec![ImpactItem {
+        id: issue_id.to_string(),
+        title: issue.title.clone(),
+    }];
+
+    if cascade {
+        let recursive_deps = get_all_dependents_recursive_sorted(repo, issue_id)?;
+        all_issues.extend(recursive_deps);
+    }
+
+    Ok(DeleteImpact {
+        issues_to_delete: all_issues,
+        blocked_issues: dependents,
+        text_references: text_refs,
+    })
+}
+
+/// Cascade delete: recursively delete all dependents
+pub fn delete_issue_cascade(repo: &BeadsRepo, issue_id: &str) -> Result<Vec<DeleteResult>> {
+    let mut results = Vec::new();
+
+    // Get all dependents recursively (topologically sorted)
+    let all_dependents = get_all_dependents_recursive_sorted(repo, issue_id)?;
+
+    // Delete in reverse dependency order (leaves first)
+    for dependent in all_dependents.iter().rev() {
+        match delete_issue(repo, &dependent.id) {
+            Ok(result) => results.push(result),
+            Err(e) => {
+                eprintln!("Warning: Failed to delete {}: {}", dependent.id, e);
+            }
+        }
+    }
+
+    // Finally delete the root issue
+    results.push(delete_issue(repo, issue_id)?);
+
+    Ok(results)
+}
+
+/// Batch delete multiple issues
+pub fn delete_issues_batch(
+    repo: &BeadsRepo,
+    issue_ids: Vec<String>,
+    cascade: bool,
+) -> Result<BatchDeleteResult> {
+    let mut successes = Vec::new();
+    let mut failures = Vec::new();
+
+    for issue_id in issue_ids {
+        let result = if cascade {
+            delete_issue_cascade(repo, &issue_id)
+                .map(|results| results.into_iter().map(|r| r.issue_id).collect())
+        } else {
+            delete_issue(repo, &issue_id)
+                .map(|r| vec![r.issue_id])
+        };
+
+        match result {
+            Ok(deleted_ids) => successes.extend(deleted_ids),
+            Err(e) => {
+                failures.push(DeleteFailure {
+                    issue_id: issue_id.clone(),
+                    error: e.to_string(),
+                });
+            }
+        }
+    }
+
+    Ok(BatchDeleteResult {
+        successes,
+        failures,
+    })
+}
+
+/// Find all text references to an issue (for preview)
+fn find_text_references(repo: &BeadsRepo, issue_id: &str) -> Result<Vec<String>> {
+    let conn = repo.open_db()?;
+    let pattern = format!("%{}%", issue_id);
+    
+    let mut stmt = conn.prepare(
+        r#"
+        SELECT id FROM issues 
+        WHERE title LIKE ?1 
+           OR data LIKE ?1
+        "#
+    )?;
+    
+    let refs = stmt
+        .query_map(rusqlite::params![pattern], |row| row.get(0))?
+        .collect::<std::result::Result<Vec<String>, _>>()?;
+    
+    Ok(refs)
+}
+
+/// Get all dependents recursively, topologically sorted
+fn get_all_dependents_recursive_sorted(repo: &BeadsRepo, issue_id: &str) -> Result<Vec<ImpactItem>> {
+    use std::collections::HashSet;
+    
+    let mut visited = HashSet::new();
+    let mut result = Vec::new();
+    
+    fn visit(
+        repo: &BeadsRepo,
+        id: &str,
+        visited: &mut HashSet<String>,
+        result: &mut Vec<ImpactItem>,
+    ) -> Result<()> {
+        if visited.contains(id) {
+            return Ok(()); // Already processed or cycle detected
+        }
+        visited.insert(id.to_string());
+        
+        let dependents = get_dependents(repo, id)?;
+        for dep_id in dependents {
+            visit(repo, &dep_id, visited, result)?;
+        }
+        
+        // Add after processing dependents (post-order for deletion)
+        if let Some(issue) = get_issue(repo, id)? {
+            result.push(ImpactItem {
+                id: id.to_string(),
+                title: issue.title,
+            });
+        }
+        
+        Ok(())
+    }
+    
+    let dependents = get_dependents(repo, issue_id)?;
+    for dep_id in dependents {
+        visit(repo, &dep_id, &mut visited, &mut result)?;
+    }
+    
+    Ok(result)
+}
+
+#[derive(Debug, Clone)]
+pub struct DeleteResult {
+    pub issue_id: String,
+    pub title: String,
+    pub dependents: Vec<String>,
+    pub references_updated: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct ImpactItem {
+    pub id: String,
+    pub title: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct DeleteImpact {
+    pub issues_to_delete: Vec<ImpactItem>,
+    pub blocked_issues: Vec<String>,
+    pub text_references: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct DeleteFailure {
+    pub issue_id: String,
+    pub error: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct BatchDeleteResult {
+    pub successes: Vec<String>,
+    pub failures: Vec<DeleteFailure>,
 }
 
 fn next_issue_id(conn: &mut Connection) -> Result<String> {
