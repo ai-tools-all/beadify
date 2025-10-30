@@ -73,9 +73,8 @@ pub fn run(
     });
     
     if issues.is_empty() {
-        println!("No issues found matching your search criteria.");
+        println!("No issues found.");
     } else {
-        println!("Found {} matching issue(s):", issues.len());
         for issue in issues {
             println!(
                 "{} [{}] {} p{} - {}",

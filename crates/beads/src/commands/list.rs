@@ -1,6 +1,13 @@
 use anyhow::Result;
 use beads_core::{get_all_issues, repo::BeadsRepo};
 
+fn status_indicator(status: &str) -> &'static str {
+    match status {
+        "closed" => "●",
+        _ => "☐",
+    }
+}
+
 pub fn run(repo: BeadsRepo, show_all: bool, status_filter: Option<String>) -> Result<()> {
     let mut issues = get_all_issues(&repo)?;
     
@@ -17,9 +24,10 @@ pub fn run(repo: BeadsRepo, show_all: bool, status_filter: Option<String>) -> Re
         println!("No issues found.");
     } else {
         for issue in issues {
+            let indicator = status_indicator(&issue.status);
             println!(
-                "{} [{}] {} p{} - {}",
-                issue.id, issue.status, issue.kind, issue.priority, issue.title
+                "{} {} [{}] {} p{} - {}",
+                indicator, issue.id, issue.status, issue.kind, issue.priority, issue.title
             );
         }
     }
