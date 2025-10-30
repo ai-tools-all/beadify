@@ -10,6 +10,14 @@ pub struct IssueUpdate {
     pub priority: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub design: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub acceptance_criteria: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub notes: Option<String>,
 }
 
 impl IssueUpdate {
@@ -18,6 +26,10 @@ impl IssueUpdate {
             && self.kind.is_none()
             && self.priority.is_none()
             && self.status.is_none()
+            && self.description.is_none()
+            && self.design.is_none()
+            && self.acceptance_criteria.is_none()
+            && self.notes.is_none()
     }
 }
 

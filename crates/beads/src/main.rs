@@ -65,6 +65,8 @@ enum Commands {
         priority: Option<u32>,
         #[arg(long)]
         status: Option<String>,
+        #[arg(long)]
+        data: Option<String>,
     },
     /// Apply new events from the log to the local database
     Sync {
@@ -185,9 +187,10 @@ fn main() -> Result<()> {
             kind,
             priority,
             status,
+            data,
         } => {
-            info!(command = "update", %id, title = title.as_deref(), kind = kind.as_deref(), priority, status = status.as_deref());
-            commands::update::run(repo.unwrap(), &id, title, kind, priority, status)?;
+            info!(command = "update", %id, title = title.as_deref(), kind = kind.as_deref(), priority, status = status.as_deref(), data = data.as_deref());
+            commands::update::run(repo.unwrap(), &id, title, kind, priority, status, data)?;
         }
         Commands::Sync { full } => {
             info!(command = "sync", full);
