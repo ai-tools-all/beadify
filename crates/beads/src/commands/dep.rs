@@ -1,5 +1,5 @@
 use anyhow::Result;
-use beads_core::{add_issue_dependency, get_dependencies, get_dependents, get_issue, remove_issue_dependency, repo::BeadsRepo};
+use beads_core::{add_issue_dependency, get_open_dependencies, get_dependents, get_issue, remove_issue_dependency, repo::BeadsRepo};
 
 pub fn show(repo: BeadsRepo, issue_id: &str) -> Result<()> {
     let issue = get_issue(&repo, issue_id)?
@@ -8,8 +8,8 @@ pub fn show(repo: BeadsRepo, issue_id: &str) -> Result<()> {
     println!("Dependencies for {} - {}", issue.id, issue.title);
     println!();
     
-    // Show blockers (issues this depends on)
-    let blockers = get_dependencies(&repo, issue_id)?;
+    // Show blockers (issues this depends on, filtered to open only)
+    let blockers = get_open_dependencies(&repo, issue_id)?;
     if !blockers.is_empty() {
         println!("Blockers (Issues this depends on):");
         for blocker_id in blockers {

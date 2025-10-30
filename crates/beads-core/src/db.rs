@@ -153,6 +153,22 @@ pub fn get_dependencies(conn: &Connection, issue_id: &str) -> Result<Vec<String>
     Ok(deps)
 }
 
+pub fn get_open_dependencies(conn: &Connection, issue_id: &str) -> Result<Vec<String>> {
+    let mut stmt = conn.prepare(
+        r#"
+        SELECT d.depends_on_id 
+        FROM dependencies d
+        JOIN issues i ON d.depends_on_id = i.id
+        WHERE d.issue_id = ?1 AND i.status != 'closed'
+        ORDER BY d.depends_on_id
+        "#
+    )?;
+    let deps = stmt
+        .query_map(params![issue_id], |row| row.get(0))?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    Ok(deps)
+}
+
 pub fn get_dependents(conn: &Connection, issue_id: &str) -> Result<Vec<String>> {
     let mut stmt = conn.prepare(
         "SELECT issue_id FROM dependencies WHERE depends_on_id = ?1 ORDER BY issue_id"

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use beads_core::{get_all_issues, get_dependencies, get_issue, get_issue_labels, repo::BeadsRepo};
+use beads_core::{get_all_issues, get_open_dependencies, get_issue, get_issue_labels, repo::BeadsRepo};
 
 fn status_indicator(status: &str) -> &'static str {
     match status {
@@ -97,8 +97,8 @@ pub fn run(
                 indicator, issue.id, issue.kind, priority_str, labels_str, issue.title
             );
             
-            // Show dependencies/blockers if any
-            if let Ok(deps) = get_dependencies(&repo, &issue.id) {
+            // Show open dependencies/blockers if any
+            if let Ok(deps) = get_open_dependencies(&repo, &issue.id) {
                 for dep_id in deps {
                     if let Ok(Some(dep_issue)) = get_issue(&repo, &dep_id) {
                         let dep_priority = format!("p{}", dep_issue.priority);
@@ -125,8 +125,8 @@ fn print_tree_node(repo: &BeadsRepo, issue: &beads_core::Issue, depth: usize) ->
     let indicator = status_indicator(&issue.status);
     println!("{}{} {} [{}] p{} - {}", prefix, indicator, issue.id, issue.status, issue.priority, issue.title);
     
-    // Show dependencies
-    if let Ok(deps) = get_dependencies(repo, &issue.id) {
+    // Show open dependencies
+    if let Ok(deps) = get_open_dependencies(repo, &issue.id) {
         for (idx, dep_id) in deps.iter().enumerate() {
             if let Ok(Some(dep_issue)) = get_issue(repo, dep_id) {
                 let is_last = idx == deps.len() - 1;
