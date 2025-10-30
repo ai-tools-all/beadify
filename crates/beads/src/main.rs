@@ -56,6 +56,9 @@ enum Commands {
         /// Filter by labels (OR - must have AT LEAST ONE specified label)
         #[arg(long)]
         label_any: Option<String>,
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
     },
     /// Update an existing issue
     Update {
@@ -180,9 +183,10 @@ fn main() -> Result<()> {
             dep_graph,
             label,
             label_any,
+            json,
         } => {
-            info!(command = "list", all, status = status.as_deref(), dep_graph, label = label.as_deref(), label_any = label_any.as_deref());
-            commands::list::run(repo.unwrap(), all, status, dep_graph, label, label_any)?;
+            info!(command = "list", all, status = status.as_deref(), dep_graph, label = label.as_deref(), label_any = label_any.as_deref(), json);
+            commands::list::run(repo.unwrap(), all, status, dep_graph, label, label_any, json)?;
         }
         Commands::Update {
             id,

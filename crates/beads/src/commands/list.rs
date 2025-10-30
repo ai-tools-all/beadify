@@ -1,5 +1,6 @@
 use anyhow::Result;
 use beads_core::{get_all_issues, get_open_dependencies, get_issue, get_issue_labels, repo::BeadsRepo};
+use serde_json::{json, Value};
 
 fn status_indicator(status: &str) -> &'static str {
     match status {
@@ -31,6 +32,7 @@ pub fn run(
     dep_graph: bool,
     label_filter: Option<String>,
     label_any_filter: Option<String>,
+    json_output: bool,
 ) -> Result<()> {
     let mut issues = get_all_issues(&repo)?;
     
@@ -58,7 +60,34 @@ pub fn run(
     }
     
     if issues.is_empty() {
-        println!("No issues found.");
+        if json_output {
+            println!("{}", serde_json::to_string_pretty(&json!({"issues": []}))?);
+        } else {
+            println!("No issues found.");
+        }
+        return Ok(());
+    }
+    
+    if json_output {
+        let issues_json: Vec<Value> = issues.iter().map(|issue| {
+            json!({
+                "id": issue.id,
+                "title": issue.title,
+                "kind": issue.kind,
+                "priority": issue.priority,
+                "status": issue.status,
+                "description": issue.description,
+                "design": issue.design,
+                "acceptance_criteria": issue.acceptance_criteria,
+                "notes": issue.notes,
+                "data": issue.data,
+                "labels": match get_issue_labels(&repo, &issue.id) {
+                    Ok(labels) => labels.iter().map(|l| l.name.clone()).collect::<Vec<_>>(),
+                    Err(_) => vec![],
+                }
+            })
+        }).collect();
+        println!("{}", serde_json::to_string_pretty(&json!({"issues": issues_json}))?);
         return Ok(());
     }
     
