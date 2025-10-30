@@ -28,6 +28,9 @@ enum Commands {
         title: String,
         #[arg(long)]
         data: String,
+        /// Issues this depends on (can be used multiple times)
+        #[arg(long)]
+        depends_on: Vec<String>,
     },
     /// Show issue details
     Show {
@@ -94,9 +97,9 @@ fn main() -> Result<()> {
             info!(command = "init", %prefix);
             commands::init::run(&prefix)?;
         }
-        Commands::Create { title, data } => {
-            info!(command = "create", %title);
-            commands::create::run(repo.unwrap(), &title, &data)?;
+        Commands::Create { title, data, depends_on } => {
+            info!(command = "create", %title, deps = depends_on.len());
+            commands::create::run(repo.unwrap(), &title, &data, depends_on)?;
         }
         Commands::Show { id } => {
             info!(command = "show", %id);

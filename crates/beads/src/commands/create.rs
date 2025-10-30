@@ -26,7 +26,7 @@ fn default_priority() -> u32 {
     2
 }
 
-pub fn run(repo: BeadsRepo, title: &str, data: &str) -> Result<()> {
+pub fn run(repo: BeadsRepo, title: &str, data: &str, depends_on: Vec<String>) -> Result<()> {
     if title.trim().is_empty() {
         return Err(anyhow!("Title is required and cannot be empty"));
     }
@@ -34,7 +34,7 @@ pub fn run(repo: BeadsRepo, title: &str, data: &str) -> Result<()> {
     let issue_data: IssueData = serde_json::from_str(data)
         .map_err(|e| anyhow!("Invalid JSON data: {}", e))?;
 
-    let event = create_issue(&repo, title, &issue_data.kind, issue_data.priority)?;
+    let event = create_issue(&repo, title, &issue_data.kind, issue_data.priority, depends_on)?;
     
     println!("Created issue {}", event.id);
     

@@ -16,6 +16,14 @@ pub fn create_schema(conn: &Connection) -> Result<()> {
             status TEXT NOT NULL DEFAULT 'open'
         );
 
+        CREATE TABLE IF NOT EXISTS dependencies (
+            issue_id TEXT NOT NULL,
+            depends_on_id TEXT NOT NULL,
+            PRIMARY KEY (issue_id, depends_on_id),
+            FOREIGN KEY (issue_id) REFERENCES issues(id) ON DELETE CASCADE,
+            FOREIGN KEY (depends_on_id) REFERENCES issues(id) ON DELETE CASCADE
+        );
+
         CREATE TABLE IF NOT EXISTS _meta (
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL
@@ -107,6 +115,27 @@ pub fn get_meta(conn: &Connection, key: &str) -> Result<Option<String>> {
     let mut stmt = conn.prepare("SELECT value FROM _meta WHERE key = ?1")?;
     let value = stmt.query_row(params![key], |row| row.get(0)).optional()?;
     Ok(value)
+}
+
+pub fn add_dependency(tx: &Transaction<'_>, issue_id: &str, depends_on_id: &str) -> Result<()> {
+    tx.execute(
+        r#"
+        INSERT OR IGNORE INTO dependencies (issue_id, depends_on_id)
+        VALUES (?1, ?2)
+        "#,
+        params![issue_id, depends_on_id],
+    )?;
+    Ok(())
+}
+
+pub fn get_dependencies(conn: &Connection, issue_id: &str) -> Result<Vec<String>> {
+    let mut stmt = conn.prepare(
+        "SELECT depends_on_id FROM dependencies WHERE issue_id = ?1 ORDER BY depends_on_id"
+    )?;
+    let deps = stmt
+        .query_map(params![issue_id], |row| row.get(0))?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    Ok(deps)
 }
 
 pub fn clear_state(tx: &Transaction<'_>) -> Result<()> {

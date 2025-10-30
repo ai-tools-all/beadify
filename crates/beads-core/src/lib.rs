@@ -8,7 +8,7 @@ pub use error::{BeadsError, Result};
 pub use model::{Event, Issue, IssueUpdate, OpKind};
 pub use repo::{find_repo, init_repo, BeadsRepo, BEADS_DIR, DB_FILE, EVENTS_FILE};
 
-use db::{apply_issue_update, create_schema, get_all_issues as db_get_all, get_issue as db_get_issue, set_meta, upsert_issue};
+use db::{add_dependency, apply_issue_update, create_schema, get_all_issues as db_get_all, get_dependencies as db_get_deps, get_issue as db_get_issue, set_meta, upsert_issue};
 use rusqlite::Connection;
 
 pub fn create_issue(
@@ -16,13 +16,14 @@ pub fn create_issue(
     title: &str,
     kind: &str,
     priority: u32,
+    depends_on: Vec<String>,
 ) -> Result<Event> {
     let mut conn = repo.open_db()?;
     create_schema(&conn)?;
 
     let issue_id = next_issue_id(&mut conn)?;
     let issue = Issue {
-        id: issue_id,
+        id: issue_id.clone(),
         title: title.to_string(),
         kind: kind.to_string(),
         priority,
@@ -37,11 +38,23 @@ pub fn create_issue(
 
     let tx = conn.transaction()?;
     upsert_issue(&tx, &issue)?;
+    
+    // Add dependencies
+    for dep_id in depends_on {
+        add_dependency(&tx, &issue_id, &dep_id)?;
+    }
+    
     set_meta(&tx, "last_event_id", event.event_id.clone())?;
     set_meta(&tx, "last_processed_offset", new_offset.to_string())?;
     tx.commit()?;
 
     Ok(event)
+}
+
+pub fn get_dependencies(repo: &BeadsRepo, issue_id: &str) -> Result<Vec<String>> {
+    let conn = repo.open_db()?;
+    create_schema(&conn)?;
+    db_get_deps(&conn, issue_id)
 }
 
 pub fn update_issue(repo: &BeadsRepo, id: &str, update: IssueUpdate) -> Result<Event> {
