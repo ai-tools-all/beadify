@@ -1,6 +1,7 @@
 use anyhow::Result;
 use beads_core::{get_all_issues, get_open_dependencies, get_issue, get_issue_labels, repo::BeadsRepo};
 use serde_json::{json, Value};
+use std::collections::{HashMap, HashSet};
 
 fn status_indicator(status: &str) -> &'static str {
     match status {
@@ -25,11 +26,157 @@ fn issue_has_any_label(repo: &BeadsRepo, issue_id: &str, required_labels: &[Stri
     Ok(required_labels.iter().any(|label| issue_label_names.contains(label)))
 }
 
+struct TreeNode {
+    issue: beads_core::Issue,
+    children: Vec<String>,
+}
+
+fn build_dependency_graph(
+    repo: &BeadsRepo,
+    issues: &[beads_core::Issue],
+) -> Result<HashMap<String, TreeNode>> {
+    let mut graph: HashMap<String, TreeNode> = HashMap::new();
+
+    // Initialize all nodes
+    for issue in issues {
+        graph.insert(
+            issue.id.clone(),
+            TreeNode {
+                issue: issue.clone(),
+                children: Vec::new(),
+            },
+        );
+    }
+
+    // Build parent-child relationships
+    for issue in issues {
+        let deps = get_open_dependencies(repo, &issue.id)?;
+        for dep_id in deps {
+            if let Some(parent_node) = graph.get_mut(&dep_id) {
+                parent_node.children.push(issue.id.clone());
+            }
+        }
+    }
+
+    Ok(graph)
+}
+
+fn find_roots(
+    graph: &HashMap<String, TreeNode>,
+    _repo: &BeadsRepo,
+) -> Result<Vec<String>> {
+    let mut is_dependency: HashSet<String> = HashSet::new();
+
+    // Mark all issues that are dependencies of others
+    for node in graph.values() {
+        for child_id in &node.children {
+            is_dependency.insert(child_id.clone());
+        }
+    }
+
+    // Roots are issues that are not dependencies of any other issue
+    let mut roots: Vec<String> = graph.keys()
+        .filter(|id| !is_dependency.contains(*id))
+        .cloned()
+        .collect();
+
+    // Sort roots by priority (descending) and then by id
+    roots.sort_by(|a, b| {
+        let node_a = &graph[a];
+        let node_b = &graph[b];
+        node_b.issue.priority.cmp(&node_a.issue.priority)
+            .then_with(|| a.cmp(b))
+    });
+
+    Ok(roots)
+}
+
+fn print_tree_node(
+    repo: &BeadsRepo,
+    graph: &HashMap<String, TreeNode>,
+    node_id: &str,
+    prefix: &str,
+    depth: usize,
+    is_last: bool,
+    show_labels: bool,
+) -> Result<()> {
+    let node = &graph[node_id];
+    let issue = &node.issue;
+
+    let indicator = status_indicator(&issue.status);
+    let priority_str = format!("p{}", issue.priority);
+
+    // Get labels if needed
+    let labels_str = if show_labels {
+        match get_issue_labels(repo, &issue.id) {
+            Ok(labels) => {
+                let label_names: Vec<String> = labels.iter().map(|l| l.name.clone()).collect();
+                if label_names.is_empty() {
+                    "-".to_string()
+                } else {
+                    format!(" [{}]", label_names.join(", "))
+                }
+            }
+            Err(_) => "-".to_string(),
+        }
+    } else {
+        String::new()
+    };
+
+    // Print current node
+    if depth == 0 {
+        println!(
+            "{} {:<8} {:<10} {:<4}{}{}",
+            indicator, issue.id, issue.kind, priority_str, labels_str, issue.title
+        );
+    } else {
+        let branch = if is_last { "└─ " } else { "├─ " };
+        println!(
+            "{}{}{} {:<8} {:<10} {:<4}{}{}",
+            prefix, branch, indicator, issue.id, issue.kind, priority_str, labels_str, issue.title
+        );
+    }
+
+    // Prepare for children
+    let child_count = node.children.len();
+    if child_count > 0 {
+        // Sort children by priority (descending) and then by id
+        let mut sorted_children = node.children.clone();
+        sorted_children.sort_by(|a, b| {
+            let node_a = &graph[a];
+            let node_b = &graph[b];
+            node_b.issue.priority.cmp(&node_a.issue.priority)
+                .then_with(|| a.cmp(b))
+        });
+
+        let new_prefix = if depth == 0 {
+            String::new()
+        } else {
+            format!("{}{}", prefix, if is_last { "   " } else { "│  " })
+        };
+
+        for (idx, child_id) in sorted_children.iter().enumerate() {
+            let is_last_child = idx == child_count - 1;
+            print_tree_node(
+                repo,
+                graph,
+                child_id,
+                &new_prefix,
+                depth + 1,
+                is_last_child,
+                show_labels,
+            )?;
+        }
+    }
+
+    Ok(())
+}
+
 pub fn run(
     repo: BeadsRepo,
     show_all: bool,
     status_filter: Option<String>,
-    dep_graph: bool,
+    flat: bool,
     label_filter: Option<String>,
     label_any_filter: Option<String>,
     json_output: bool,
@@ -92,24 +239,33 @@ pub fn run(
         return Ok(());
     }
     
-    if dep_graph {
-        // Tree view for dependency graph
-        println!("Dependency Graph:");
-        println!();
-        
-        for issue in issues {
-            print_tree_node(&repo, &issue, 0)?;
-        }
-    } else {
-        // Table view (default)
+    if !flat {
+        // Tree view (default)
+        // Build dependency graph
+        let graph = build_dependency_graph(&repo, &issues)?;
+        let roots = find_roots(&graph, &repo)?;
+
         if show_labels {
             println!("{:<2} {:<8} {:<10} {:<4} {:<20} {}", " ", "ID", "Kind", "Prio", "Labels", "Title");
             println!("{}", "─".repeat(100));
-            
+        } else {
+            println!("{:<2} {:<8} {:<10} {:<4} {}", " ", "ID", "Kind", "Prio", "Title");
+            println!("{}", "─".repeat(70));
+        }
+
+        for root_id in roots {
+            print_tree_node(&repo, &graph, &root_id, "", 0, true, show_labels)?;
+        }
+    } else {
+        // Flat list view (old behavior)
+        if show_labels {
+            println!("{:<2} {:<8} {:<10} {:<4} {:<20} {}", " ", "ID", "Kind", "Prio", "Labels", "Title");
+            println!("{}", "─".repeat(100));
+
             for issue in issues {
                 let indicator = status_indicator(&issue.status);
                 let priority_str = format!("p{}", issue.priority);
-                
+
                 // Get labels for this issue
                 let labels_str = match get_issue_labels(&repo, &issue.id) {
                     Ok(labels) => {
@@ -122,12 +278,12 @@ pub fn run(
                     }
                     Err(_) => "-".to_string(),
                 };
-                
+
                 println!(
                     "{} {:<8} {:<10} {:<4} {:<20} {}",
                     indicator, issue.id, issue.kind, priority_str, labels_str, issue.title
                 );
-                
+
                 // Show open dependencies/blockers if any
                 if let Ok(deps) = get_open_dependencies(&repo, &issue.id) {
                     for dep_id in deps {
@@ -144,16 +300,16 @@ pub fn run(
         } else {
             println!("{:<2} {:<8} {:<10} {:<4} {}", " ", "ID", "Kind", "Prio", "Title");
             println!("{}", "─".repeat(70));
-            
+
             for issue in issues {
                 let indicator = status_indicator(&issue.status);
                 let priority_str = format!("p{}", issue.priority);
-                
+
                 println!(
                     "{} {:<8} {:<10} {:<4} {}",
                     indicator, issue.id, issue.kind, priority_str, issue.title
                 );
-                
+
                 // Show open dependencies/blockers if any
                 if let Ok(deps) = get_open_dependencies(&repo, &issue.id) {
                     for dep_id in deps {
@@ -166,44 +322,6 @@ pub fn run(
                         }
                     }
                 }
-            }
-        }
-    }
-    
-    Ok(())
-}
-
-fn print_tree_node(repo: &BeadsRepo, issue: &beads_core::Issue, depth: usize) -> Result<()> {
-    let prefix = if depth == 0 {
-        "".to_string()
-    } else {
-        "  ".repeat(depth - 1) + "└─ "
-    };
-    
-    let indicator = status_indicator(&issue.status);
-    println!("{}{} {} [{}] p{} - {}", prefix, indicator, issue.id, issue.status, issue.priority, issue.title);
-    
-    // Show open dependencies
-    if let Ok(deps) = get_open_dependencies(repo, &issue.id) {
-        for (idx, dep_id) in deps.iter().enumerate() {
-            if let Ok(Some(dep_issue)) = get_issue(repo, dep_id) {
-                let is_last = idx == deps.len() - 1;
-                let sub_prefix = if depth == 0 {
-                    if is_last {
-                        "└─ ".to_string()
-                    } else {
-                        "├─ ".to_string()
-                    }
-                } else {
-                    if is_last {
-                        "  ".repeat(depth) + "└─ "
-                    } else {
-                        "  ".repeat(depth) + "├─ "
-                    }
-                };
-                
-                let indicator = status_indicator(&dep_issue.status);
-                println!("{}{} {} [{}] p{} - {}", sub_prefix, indicator, dep_issue.id, dep_issue.status, dep_issue.priority, dep_issue.title);
             }
         }
     }

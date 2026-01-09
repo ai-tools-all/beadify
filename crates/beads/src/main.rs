@@ -50,9 +50,9 @@ enum Commands {
         /// Filter by status (open, in_progress, closed, etc.)
         #[arg(long)]
         status: Option<String>,
-        /// Show dependency tree graph view
+        /// Show flat list instead of tree hierarchy
         #[arg(long)]
-        dep_graph: bool,
+        flat: bool,
         /// Filter by labels (AND - must have ALL specified labels)
         #[arg(long)]
         label: Option<String>,
@@ -233,14 +233,14 @@ fn main() -> Result<()> {
         Commands::List {
             all,
             status,
-            dep_graph,
+            flat,
             label,
             label_any,
             json,
             labels,
         } => {
-            info!(command = "list", all, status = status.as_deref(), dep_graph, label = label.as_deref(), label_any = label_any.as_deref(), json, labels);
-            commands::list::run(repo.unwrap(), all, status, dep_graph, label, label_any, json, labels)?;
+            info!(command = "list", all, status = status.as_deref(), flat, label = label.as_deref(), label_any = label_any.as_deref(), json, labels);
+            commands::list::run(repo.unwrap(), all, status, flat, label, label_any, json, labels)?;
         }
         Commands::Update {
             id,
