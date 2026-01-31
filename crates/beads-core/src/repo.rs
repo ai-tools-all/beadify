@@ -6,7 +6,7 @@ use rusqlite::Connection;
 
 use crate::{
     db,
-    error::{BeadsError, Result},
+    error_v2::{Error, Result},
 };
 
 pub const BEADS_DIR: &str = ".beads";
@@ -59,7 +59,10 @@ impl BeadsRepo {
 
 pub fn find_repo() -> Result<BeadsRepo> {
     let mut current = std::env::current_dir()?;
+    let mut searched_paths = Vec::new();
+
     loop {
+        searched_paths.push(format!("  {}", current.display()));
         let candidate = current.join(BEADS_DIR);
         if candidate.is_dir() {
             return Ok(BeadsRepo::new(current));
@@ -68,13 +71,18 @@ pub fn find_repo() -> Result<BeadsRepo> {
             break;
         }
     }
-    Err(BeadsError::RepoNotFound)
+
+    Err(Error::RepoNotFound {
+        searched_paths: searched_paths.join("\n"),
+    })
 }
 
 pub fn init_repo(path: &Path, prefix: &str) -> Result<BeadsRepo> {
     let repo = BeadsRepo::new(path.to_path_buf());
     if repo.beads_dir().exists() {
-        return Err(BeadsError::AlreadyInitialized);
+        return Err(Error::RepoAlreadyExists {
+            path: path.to_path_buf(),
+        });
     }
     fs::create_dir_all(repo.beads_dir())?;
     fs::create_dir_all(repo.beads_dir().join(BLOBS_DIR))?;

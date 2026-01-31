@@ -315,6 +315,45 @@ impl Error {
     }
 }
 
+// Implement From traits for automatic error conversion
+impl From<std::io::Error> for Error {
+    fn from(source: std::io::Error) -> Self {
+        Error::Io {
+            action: "I/O operation".to_string(),
+            source,
+        }
+    }
+}
+
+impl From<rusqlite::Error> for Error {
+    fn from(source: rusqlite::Error) -> Self {
+        Error::Database {
+            operation: "database operation".to_string(),
+            source,
+        }
+    }
+}
+
+impl From<serde_json::Error> for Error {
+    fn from(source: serde_json::Error) -> Self {
+        Error::InvalidJson {
+            context: "JSON parsing".to_string(),
+            expected_format: "valid JSON".to_string(),
+            example: "{}".to_string(),
+            source,
+        }
+    }
+}
+
+impl From<ulid::DecodeError> for Error {
+    fn from(source: ulid::DecodeError) -> Self {
+        Error::Io {
+            action: format!("decode ULID: {}", source),
+            source: std::io::Error::new(std::io::ErrorKind::InvalidData, source),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

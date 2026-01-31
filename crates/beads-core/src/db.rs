@@ -1,7 +1,7 @@
 use rusqlite::{params, Connection, OptionalExtension, Transaction};
 
 use crate::{
-    error::Result,
+    error_v2::Result,
     model::{Issue, IssueUpdate, Label},
 };
 
@@ -230,10 +230,13 @@ pub fn remove_dependency(tx: &Transaction<'_>, issue_id: &str, depends_on_id: &s
         params![issue_id, depends_on_id],
     )?;
     if rows == 0 {
-        return Err(crate::error::BeadsError::custom(format!(
-            "Dependency not found: {} does not depend on {}",
-            issue_id, depends_on_id
-        )));
+        return Err(crate::error_v2::Error::Io {
+            action: format!(
+                "Dependency not found: {} does not depend on {}",
+                issue_id, depends_on_id
+            ),
+            source: std::io::Error::new(std::io::ErrorKind::NotFound, "dependency not found"),
+        });
     }
     Ok(())
 }
@@ -397,10 +400,10 @@ pub fn get_all_labels(conn: &Connection) -> Result<Vec<Label>> {
 pub fn delete_label(tx: &Transaction<'_>, id: &str) -> Result<()> {
      let rows = tx.execute("DELETE FROM labels WHERE id = ?1", params![id])?;
      if rows == 0 {
-         return Err(crate::error::BeadsError::custom(format!(
-             "Label not found: {}",
-             id
-         )));
+         return Err(crate::error_v2::Error::Io {
+            action: format!("Label not found: {}", id),
+            source: std::io::Error::new(std::io::ErrorKind::NotFound, "label not found"),
+         });
      }
      Ok(())
  }
@@ -419,10 +422,10 @@ pub fn remove_issue_label(tx: &Transaction<'_>, issue_id: &str, label_id: &str) 
          params![issue_id, label_id],
      )?;
      if rows == 0 {
-         return Err(crate::error::BeadsError::custom(format!(
-             "Issue label not found: {} on {}",
-             label_id, issue_id
-         )));
+         return Err(crate::error_v2::Error::Io {
+            action: format!("Issue label not found: {} on {}", label_id, issue_id),
+            source: std::io::Error::new(std::io::ErrorKind::NotFound, "issue label not found"),
+         });
      }
      Ok(())
  }

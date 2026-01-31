@@ -4,7 +4,7 @@ use std::io::Write;
 use sha2::{Digest, Sha256};
 
 use crate::{
-    error::{BeadsError, Result},
+    error_v2::{Error, Result},
     repo::{BeadsRepo, BLOBS_DIR},
 };
 
@@ -33,7 +33,7 @@ pub fn read_blob(repo: &BeadsRepo, hash: &str) -> Result<Vec<u8>> {
     let blob_path = repo.beads_dir().join(BLOBS_DIR).join(hash);
 
     if !blob_path.exists() {
-        return Err(BeadsError::BlobNotFound {
+        return Err(Error::BlobNotFound {
             hash: hash.to_string(),
         });
     }
@@ -49,12 +49,12 @@ fn calculate_hash(content: &[u8]) -> String {
 
 fn validate_hash(hash: &str) -> Result<()> {
      if hash.len() != 64 {
-         return Err(BeadsError::InvalidHash {
+         return Err(Error::InvalidHash {
              hash: format!("Hash must be 64 characters, got {}", hash.len()),
          });
      }
      if !hash.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()) {
-         return Err(BeadsError::InvalidHash {
+         return Err(Error::InvalidHash {
              hash: "Hash must contain only lowercase hexadecimal characters".to_string(),
          });
      }
@@ -105,7 +105,7 @@ mod tests {
         let fake_hash = "0000000000000000000000000000000000000000000000000000000000000000";
          let result = read_blob(&repo, fake_hash);
         
-         assert!(matches!(result, Err(BeadsError::BlobNotFound { .. })));
+         assert!(matches!(result, Err(Error::BlobNotFound { .. })));
 
         Ok(())
     }
@@ -113,19 +113,19 @@ mod tests {
     #[test]
     fn test_validate_hash_invalid_length() {
         let result = validate_hash("tooshort");
-        assert!(matches!(result, Err(BeadsError::InvalidHash { .. })));
+        assert!(matches!(result, Err(Error::InvalidHash { .. })));
     }
     
     #[test]
     fn test_validate_hash_invalid_chars() {
         let result = validate_hash("ZZZZ000000000000000000000000000000000000000000000000000000000000");
-        assert!(matches!(result, Err(BeadsError::InvalidHash { .. })));
+        assert!(matches!(result, Err(Error::InvalidHash { .. })));
     }
     
     #[test]
     fn test_validate_hash_uppercase() {
         let result = validate_hash("AAAA000000000000000000000000000000000000000000000000000000000000");
-        assert!(matches!(result, Err(BeadsError::InvalidHash { .. })));
+        assert!(matches!(result, Err(Error::InvalidHash { .. })));
     }
 
     #[test]
