@@ -8,9 +8,6 @@ use beads_core::{
     add_label_to_issue, remove_label_from_issue, repo::BeadsRepo, update_issue, IssueUpdate,
 };
 
-use crate::cli::enums::Priority;
-use crate::cli::errors::invalid_enum_error_short;
-
 /// Run the issue update command
 ///
 /// # Arguments
@@ -18,9 +15,9 @@ use crate::cli::errors::invalid_enum_error_short;
 /// * `id` - Issue ID to update
 /// * `title` - New title (optional)
 /// * `description` - New description (optional)
-/// * `kind` - New kind: bug, feature, refactor, docs, chore, task (optional)
-/// * `priority` - New priority: low, medium, high, urgent (optional)
-/// * `status` - New status: open, in_progress, review, closed (optional)
+/// * `kind` - New kind (optional)
+/// * `priority` - New priority as u32 (optional)
+/// * `status` - New status (optional)
 /// * `add_label` - Comma-separated labels to add (optional)
 /// * `remove_label` - Comma-separated labels to remove (optional)
 /// * `data` - JSON data for backward compatibility (optional, flags override this)
@@ -30,7 +27,7 @@ pub fn run(
     title: Option<String>,
     description: Option<String>,
     kind: Option<String>,
-    priority: Option<String>,
+    priority: Option<u32>,
     status: Option<String>,
     add_label: Option<String>,
     remove_label: Option<String>,
@@ -44,18 +41,8 @@ pub fn run(
     update.description = description;
     update.status = status;
 
-    // Convert priority string to u32
-    if let Some(p) = priority {
-        if let Some(priority_int) = Priority::from_str(&p).or_else(|| p.parse::<u32>().ok()) {
-            update.priority = Some(priority_int);
-        } else {
-            return Err(anyhow!(invalid_enum_error_short(
-                "priority",
-                &p,
-                &Priority::variants()
-            )));
-        }
-    }
+    // Priority is now pre-validated by clap as u32
+    update.priority = priority;
 
     // Parse JSON --data if provided
     if let Some(data_str) = data {

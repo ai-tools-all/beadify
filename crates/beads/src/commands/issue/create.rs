@@ -11,16 +11,14 @@ use beads_core::{
     update_issue, IssueUpdate,
 };
 
-use crate::cli::enums::Priority;
-
 /// Run the issue create command
 ///
 /// # Arguments
 /// * `repo` - The beads repository
 /// * `title` - Issue title (required)
 /// * `description` - Issue description (optional)
-/// * `kind` - Issue kind: bug, feature, refactor, docs, chore, task (optional, defaults to "task")
-/// * `priority` - Priority: low, medium, high, urgent (optional, defaults to "medium")
+/// * `kind` - Issue kind (optional, defaults to "task")
+/// * `priority` - Priority as u32 (optional, defaults to 1/medium)
 /// * `label` - Comma-separated labels to add (optional)
 /// * `depends_on` - Dependencies (can be used multiple times)
 /// * `doc` - Documents in "name:path" format (can be used multiple times)
@@ -30,7 +28,7 @@ pub fn run(
     title: &str,
     description: Option<String>,
     kind: Option<String>,
-    priority: Option<String>,
+    priority: Option<u32>,
     label: Option<String>,
     depends_on: Vec<String>,
     doc: Vec<String>,
@@ -60,15 +58,8 @@ pub fn run(
     // 3. Merge flags (flags override JSON)
     let final_kind = kind.or(json_kind).unwrap_or_else(|| "task".to_string());
 
-    let final_priority = priority
-        .and_then(|p| {
-            Priority::from_str(&p).or_else(|| {
-                // Try parsing as raw number for backward compatibility
-                p.parse::<u32>().ok()
-            })
-        })
-        .or(json_priority)
-        .unwrap_or(1); // default to "medium"
+    // Priority is now pre-validated by clap as u32
+    let final_priority = priority.or(json_priority).unwrap_or(1); // default to "medium"
 
     let final_description = description.or(json_desc);
 

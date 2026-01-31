@@ -9,8 +9,6 @@ use beads_core::{
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 
-use crate::cli::enums::Priority;
-
 fn status_indicator(status: &str) -> &'static str {
     match status {
         "closed" => "●",
@@ -186,8 +184,8 @@ fn print_tree_node(
 /// * `repo` - The beads repository
 /// * `show_all` - Show all issues including closed
 /// * `status_filter` - Filter by status (optional)
-/// * `priority_filter` - Filter by priority: low, medium, high, urgent (optional)
-/// * `kind_filter` - Filter by kind: bug, feature, refactor, docs, chore, task (optional)
+/// * `priority_filter` - Filter by priority as u32 (optional)
+/// * `kind_filter` - Filter by kind (optional)
 /// * `label_filter` - Filter by labels (AND - must have ALL) (optional)
 /// * `label_any_filter` - Filter by labels (OR - must have at least one) (optional)
 /// * `flat` - Show flat list instead of tree hierarchy
@@ -197,7 +195,7 @@ pub fn run(
     repo: BeadsRepo,
     show_all: bool,
     status_filter: Option<String>,
-    priority_filter: Option<String>,
+    priority_filter: Option<u32>,
     kind_filter: Option<String>,
     label_filter: Option<String>,
     label_any_filter: Option<String>,
@@ -214,11 +212,9 @@ pub fn run(
         issues.retain(|issue| issue.status == "open");
     }
 
-    // Filter by priority (convert string to u32)
-    if let Some(p) = priority_filter {
-        if let Some(priority_int) = Priority::from_str(&p).or_else(|| p.parse::<u32>().ok()) {
-            issues.retain(|issue| issue.priority == priority_int);
-        }
+    // Filter by priority (pre-validated by clap as u32)
+    if let Some(priority_int) = priority_filter {
+        issues.retain(|issue| issue.priority == priority_int);
     }
 
     // Filter by kind
