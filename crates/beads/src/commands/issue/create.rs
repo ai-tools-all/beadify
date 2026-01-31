@@ -5,10 +5,10 @@
 
 use std::fs;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use beads_core::{
     add_document_to_issue, add_label_to_issue, create_issue_with_data, repo::BeadsRepo,
-    update_issue, IssueUpdate,
+    update_issue, BeadsError, IssueUpdate,
 };
 
 /// Run the issue create command
@@ -35,15 +35,15 @@ pub fn run(
     data: Option<String>,
 ) -> Result<()> {
     // 1. Validate title
-    if title.trim().is_empty() {
-        return Err(anyhow!("Title is required and cannot be empty"));
-    }
+     if title.trim().is_empty() {
+         return Err(BeadsError::missing_field("title").into());
+     }
 
     // 2. Parse JSON --data if provided
     let (json_kind, json_priority, json_desc): (Option<String>, Option<u32>, Option<String>) =
         if let Some(data_str) = &data {
             let parsed = serde_json::from_str::<serde_json::Value>(data_str)
-                .map_err(|e| anyhow!("Invalid JSON data: {}\n\nExpected format: '{{\"description\":\"...\",\"priority\":1,\"kind\":\"bug\"}}'", e))?;
+                .map_err(BeadsError::invalid_json_for_create)?;
             let kind = parsed.get("kind").and_then(|v| v.as_str()).map(|s| s.to_string());
             let priority = parsed.get("priority").and_then(|v| v.as_u64()).map(|p| p as u32);
             let desc = parsed

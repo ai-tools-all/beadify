@@ -3,9 +3,10 @@
 //! Supports both individual flags and JSON --data flag for backward compatibility.
 /// Individual flags override JSON values.
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use beads_core::{
-    add_label_to_issue, remove_label_from_issue, repo::BeadsRepo, update_issue, IssueUpdate,
+    add_label_to_issue, remove_label_from_issue, repo::BeadsRepo, update_issue, BeadsError,
+    IssueUpdate,
 };
 
 /// Run the issue update command
@@ -47,7 +48,7 @@ pub fn run(
     // Parse JSON --data if provided
     if let Some(data_str) = data {
         let json = serde_json::from_str::<serde_json::Value>(&data_str)
-            .map_err(|e| anyhow!("Invalid JSON data: {}\n\nExpected format: '{{\"description\":\"...\",\"priority\":1,\"status\":\"closed\"}}'", e))?;
+            .map_err(BeadsError::invalid_json_for_update)?;
 
         // Apply JSON values only if not already set by flags
         if update.description.is_none() {
@@ -82,10 +83,7 @@ pub fn run(
     let has_label_operations = add_label.is_some() || remove_label.is_some();
 
     if !has_field_updates && !has_label_operations {
-        return Err(anyhow!(
-            "No updates specified.\n\nAvailable options:\n  --title <TITLE>\n  --description <DESCRIPTION>\n  --kind <KIND>\n  --priority <PRIORITY>\n  --status <STATUS>\n  --add-label <LABELS>\n  --remove-label <LABELS>\n  --data <JSON>\n\nExample: beads issue update {} --status closed",
-            id
-        ));
+        return Err(BeadsError::empty_update(id).into());
     }
 
     // Apply field updates if any
