@@ -649,8 +649,8 @@ mod tests {
         create_label(&tx, &label)?;
         add_issue_label(&tx, "issue-1", "label-1")?;
         tx.commit()?;
-
-        let mut tx2 = conn.transaction()?;
+        
+        let tx2 = conn.transaction()?;
         remove_issue_label(&tx2, "issue-1", "label-1")?;
         tx2.commit()?;
 
@@ -663,7 +663,7 @@ mod tests {
     #[test]
     fn test_remove_nonexistent_issue_label_fails() -> Result<()> {
         let mut conn = setup_test_db()?;
-        let mut tx = conn.transaction()?;
+        let tx = conn.transaction()?;
     
         let result = remove_issue_label(&tx, "issue-1", "label-1");
         assert!(result.is_err());
@@ -684,8 +684,8 @@ mod tests {
         };
         create_label(&tx, &label)?;
         tx.commit()?;
-
-        let mut tx2 = conn.transaction()?;
+        
+        let tx2 = conn.transaction()?;
         delete_label(&tx2, "label-1")?;
         tx2.commit()?;
 
@@ -698,7 +698,7 @@ mod tests {
     #[test]
     fn test_delete_nonexistent_label_fails() -> Result<()> {
         let mut conn = setup_test_db()?;
-        let mut tx = conn.transaction()?;
+        let tx = conn.transaction()?;
     
         let result = delete_label(&tx, "label-1");
         assert!(result.is_err());

@@ -66,8 +66,7 @@ pub fn run(
     // 4. Create issue
     let data_json: Option<serde_json::Value> = data
         .as_ref()
-        .map(|s| serde_json::from_str(s).ok())
-        .flatten();
+        .and_then(|s| serde_json::from_str(s).ok());
 
     let event = create_issue_with_data(
         &repo,
