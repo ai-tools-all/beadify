@@ -168,6 +168,79 @@ pub fn get_all_issues(conn: &Connection) -> Result<Vec<Issue>> {
     Ok(issues)
 }
 
+fn make_issue_from_row(row: &rusqlite::Row) -> rusqlite::Result<Issue> {
+    let data_str: Option<String> = row.get(10)?;
+    let data = data_str.and_then(|s| serde_json::from_str(&s).ok());
+    Ok(Issue {
+        id: row.get(0)?,
+        title: row.get(1)?,
+        kind: row.get(2)?,
+        priority: row.get::<_, i64>(3)? as u32,
+        status: row.get(4)?,
+        created_at: row.get(5)?,
+        description: row.get(6)?,
+        design: row.get(7)?,
+        acceptance_criteria: row.get(8)?,
+        notes: row.get(9)?,
+        data,
+    })
+}
+
+pub fn get_issues_created_after(
+    conn: &Connection,
+    after_date: &str,
+    status_filter: Option<&str>,
+) -> Result<Vec<Issue>> {
+    let query = if status_filter.is_some() {
+        "SELECT id, title, kind, priority, status, created_at, description, design, acceptance_criteria, notes, data 
+         FROM issues 
+         WHERE created_at >= ? AND status = ?
+         ORDER BY created_at DESC"
+    } else {
+        "SELECT id, title, kind, priority, status, created_at, description, design, acceptance_criteria, notes, data 
+         FROM issues 
+         WHERE created_at >= ?
+         ORDER BY created_at DESC"
+    };
+
+    let mut stmt = conn.prepare(query)?;
+    let issues = if let Some(status) = status_filter {
+        stmt.query_map(params![after_date, status], make_issue_from_row)?
+    } else {
+        stmt.query_map(params![after_date], make_issue_from_row)?
+    };
+
+    issues.collect::<std::result::Result<Vec<_>, _>>().map_err(Into::into)
+}
+
+pub fn get_issues_created_between(
+    conn: &Connection,
+    after_date: &str,
+    before_date: &str,
+    status_filter: Option<&str>,
+) -> Result<Vec<Issue>> {
+    let query = if status_filter.is_some() {
+        "SELECT id, title, kind, priority, status, created_at, description, design, acceptance_criteria, notes, data 
+         FROM issues 
+         WHERE created_at >= ? AND created_at <= ? AND status = ?
+         ORDER BY created_at DESC"
+    } else {
+        "SELECT id, title, kind, priority, status, created_at, description, design, acceptance_criteria, notes, data 
+         FROM issues 
+         WHERE created_at >= ? AND created_at <= ?
+         ORDER BY created_at DESC"
+    };
+
+    let mut stmt = conn.prepare(query)?;
+    let issues = if let Some(status) = status_filter {
+        stmt.query_map(params![after_date, before_date, status], make_issue_from_row)?
+    } else {
+        stmt.query_map(params![after_date, before_date], make_issue_from_row)?
+    };
+
+    issues.collect::<std::result::Result<Vec<_>, _>>().map_err(Into::into)
+}
+
 pub fn set_meta(tx: &Transaction<'_>, key: &str, value: String) -> Result<()> {
     tx.execute(
         r#"
