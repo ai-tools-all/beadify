@@ -8,31 +8,32 @@ use beads_core::{
     add_label_to_issue, remove_label_from_issue, repo::BeadsRepo, update_issue, Error, IssueUpdate,
 };
 
+/// Parameters for updating an issue
+pub struct UpdateParams {
+    pub id: String,
+    pub title: Option<String>,
+    pub description: Option<String>,
+    pub kind: Option<String>,
+    pub priority: Option<u32>,
+    pub status: Option<String>,
+    pub add_label: Option<String>,
+    pub remove_label: Option<String>,
+    pub data: Option<String>,
+}
+
 /// Run the issue update command
-///
-/// # Arguments
-/// * `repo` - The beads repository
-/// * `id` - Issue ID to update
-/// * `title` - New title (optional)
-/// * `description` - New description (optional)
-/// * `kind` - New kind (optional)
-/// * `priority` - New priority as u32 (optional)
-/// * `status` - New status (optional)
-/// * `add_label` - Comma-separated labels to add (optional)
-/// * `remove_label` - Comma-separated labels to remove (optional)
-/// * `data` - JSON data for backward compatibility (optional, flags override this)
-pub fn run(
-    repo: BeadsRepo,
-    id: &str,
-    title: Option<String>,
-    description: Option<String>,
-    kind: Option<String>,
-    priority: Option<u32>,
-    status: Option<String>,
-    add_label: Option<String>,
-    remove_label: Option<String>,
-    data: Option<String>,
-) -> Result<()> {
+pub fn run(repo: BeadsRepo, params: UpdateParams) -> Result<()> {
+    let UpdateParams {
+        id,
+        title,
+        description,
+        kind,
+        priority,
+        status,
+        add_label,
+        remove_label,
+        data,
+    } = params;
     let mut update = IssueUpdate {
         title,
         kind,
@@ -98,7 +99,7 @@ pub fn run(
 
     // Apply field updates if any
     if has_field_updates {
-        let event = update_issue(&repo, id, update)?;
+        let event = update_issue(&repo, &id, update)?;
         println!("Updated issue {} via event {}", id, event.event_id);
     }
 
@@ -107,7 +108,7 @@ pub fn run(
         let label_names: Vec<&str> = labels_str.split(',').map(|s| s.trim()).collect();
         for label_name in label_names {
             if !label_name.is_empty() {
-                match add_label_to_issue(&repo, id, label_name) {
+                match add_label_to_issue(&repo, &id, label_name) {
                     Ok(_) => println!("Added label '{}'", label_name),
                     Err(e) => eprintln!("Failed to add label '{}': {}", label_name, e),
                 }
@@ -119,7 +120,7 @@ pub fn run(
         let label_names: Vec<&str> = labels_str.split(',').map(|s| s.trim()).collect();
         for label_name in label_names {
             if !label_name.is_empty() {
-                match remove_label_from_issue(&repo, id, label_name) {
+                match remove_label_from_issue(&repo, &id, label_name) {
                     Ok(_) => println!("Removed label '{}'", label_name),
                     Err(e) => eprintln!("Failed to remove label '{}': {}", label_name, e),
                 }

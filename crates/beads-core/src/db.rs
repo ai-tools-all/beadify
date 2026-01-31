@@ -74,8 +74,12 @@ pub fn create_schema(conn: &Connection) -> Result<()> {
         conn.execute("ALTER TABLE issues ADD COLUMN notes TEXT", [])?;
     }
     if !columns.contains(&"created_at".to_string()) {
+        // SQLite doesn't support non-constant defaults in ALTER TABLE
+        // Add column without default, then update existing rows
+        conn.execute("ALTER TABLE issues ADD COLUMN created_at TEXT", [])?;
+        // Set default value for existing rows using a fixed timestamp
         conn.execute(
-            "ALTER TABLE issues ADD COLUMN created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP",
+            "UPDATE issues SET created_at = '2024-01-01T00:00:00Z' WHERE created_at IS NULL",
             [],
         )?;
     }
@@ -210,7 +214,9 @@ pub fn get_issues_created_after(
         stmt.query_map(params![after_date], make_issue_from_row)?
     };
 
-    issues.collect::<std::result::Result<Vec<_>, _>>().map_err(Into::into)
+    issues
+        .collect::<std::result::Result<Vec<_>, _>>()
+        .map_err(Into::into)
 }
 
 pub fn get_issues_created_between(
@@ -233,12 +239,17 @@ pub fn get_issues_created_between(
 
     let mut stmt = conn.prepare(query)?;
     let issues = if let Some(status) = status_filter {
-        stmt.query_map(params![after_date, before_date, status], make_issue_from_row)?
+        stmt.query_map(
+            params![after_date, before_date, status],
+            make_issue_from_row,
+        )?
     } else {
         stmt.query_map(params![after_date, before_date], make_issue_from_row)?
     };
 
-    issues.collect::<std::result::Result<Vec<_>, _>>().map_err(Into::into)
+    issues
+        .collect::<std::result::Result<Vec<_>, _>>()
+        .map_err(Into::into)
 }
 
 pub fn set_meta(tx: &Transaction<'_>, key: &str, value: String) -> Result<()> {

@@ -11,29 +11,30 @@ use beads_core::{
     update_issue, Error, IssueUpdate,
 };
 
+/// Parameters for creating an issue
+pub struct CreateParams {
+    pub title: String,
+    pub description: Option<String>,
+    pub kind: Option<String>,
+    pub priority: Option<u32>,
+    pub label: Option<String>,
+    pub depends_on: Vec<String>,
+    pub doc: Vec<String>,
+    pub data: Option<String>,
+}
+
 /// Run the issue create command
-///
-/// # Arguments
-/// * `repo` - The beads repository
-/// * `title` - Issue title (required)
-/// * `description` - Issue description (optional)
-/// * `kind` - Issue kind (optional, defaults to "task")
-/// * `priority` - Priority as u32 (optional, defaults to 1/medium)
-/// * `label` - Comma-separated labels to add (optional)
-/// * `depends_on` - Dependencies (can be used multiple times)
-/// * `doc` - Documents in "name:path" format (can be used multiple times)
-/// * `data` - JSON data for backward compatibility (optional, flags override this)
-pub fn run(
-    repo: BeadsRepo,
-    title: &str,
-    description: Option<String>,
-    kind: Option<String>,
-    priority: Option<u32>,
-    label: Option<String>,
-    depends_on: Vec<String>,
-    doc: Vec<String>,
-    data: Option<String>,
-) -> Result<()> {
+pub fn run(repo: BeadsRepo, params: CreateParams) -> Result<()> {
+    let CreateParams {
+        title,
+        description,
+        kind,
+        priority,
+        label,
+        depends_on,
+        doc,
+        data,
+    } = params;
     // 1. Validate title
     if title.trim().is_empty() {
         return Err(Error::missing_field("title", "--kind task --priority medium").into());
@@ -84,7 +85,7 @@ pub fn run(
 
     let event = create_issue_with_data(
         &repo,
-        title,
+        &title,
         &final_kind,
         final_priority,
         depends_on,

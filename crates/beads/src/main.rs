@@ -231,6 +231,18 @@ enum IssueCommand {
 
         #[arg(long)]
         labels: bool,
+
+        /// Filter issues created after this date (e.g., '2026-01-20' or '1 week ago')
+        #[arg(long)]
+        created_after: Option<String>,
+
+        /// Filter issues created before this date (e.g., '2026-01-20' or '1 week ago')
+        #[arg(long)]
+        created_before: Option<String>,
+
+        /// User timezone for date parsing (e.g., 'America/New_York'). Default: system timezone
+        #[arg(long)]
+        timezone: Option<String>,
     },
 
     /// Show issue details
@@ -365,13 +377,15 @@ fn main() -> Result<()> {
             );
             commands::list::run(
                 repo.unwrap(),
-                all,
-                status,
-                flat,
-                label,
-                label_any,
-                json,
-                labels,
+                commands::list::ListParams {
+                    show_all: all,
+                    status_filter: status,
+                    flat,
+                    label_filter: label,
+                    label_any_filter: label_any,
+                    json_output: json,
+                    show_labels: labels,
+                },
             )?;
         }
         Commands::Update {
@@ -504,14 +518,16 @@ fn main() -> Result<()> {
                 info!(command = "issue create", %title);
                 commands::issue::create::run(
                     repo.unwrap(),
-                    &title,
-                    description,
-                    kind.map(|k| k.as_str().to_string()),
-                    priority.map(|p| p.as_u32()),
-                    label,
-                    depends_on,
-                    doc,
-                    data,
+                    commands::issue::create::CreateParams {
+                        title,
+                        description,
+                        kind: kind.map(|k| k.as_str().to_string()),
+                        priority: priority.map(|p| p.as_u32()),
+                        label,
+                        depends_on,
+                        doc,
+                        data,
+                    },
                 )?;
             }
             IssueCommand::Update {
@@ -528,15 +544,17 @@ fn main() -> Result<()> {
                 info!(command = "issue update", %id);
                 commands::issue::update::run(
                     repo.unwrap(),
-                    &id,
-                    title,
-                    description,
-                    kind.map(|k| k.as_str().to_string()),
-                    priority.map(|p| p.as_u32()),
-                    status.map(|s| s.as_str().to_string()),
-                    add_label,
-                    remove_label,
-                    data,
+                    commands::issue::update::UpdateParams {
+                        id,
+                        title,
+                        description,
+                        kind: kind.map(|k| k.as_str().to_string()),
+                        priority: priority.map(|p| p.as_u32()),
+                        status: status.map(|s| s.as_str().to_string()),
+                        add_label,
+                        remove_label,
+                        data,
+                    },
                 )?;
             }
             IssueCommand::List {
@@ -548,19 +566,27 @@ fn main() -> Result<()> {
                 flat,
                 json,
                 labels,
+                created_after,
+                created_before,
+                timezone,
             } => {
                 info!(command = "issue list", all, status = ?status, priority = ?priority, kind = ?kind);
                 commands::issue::list::run(
                     repo.unwrap(),
-                    all,
-                    status.map(|s| s.as_str().to_string()),
-                    priority.map(|p| p.as_u32()),
-                    kind.map(|k| k.as_str().to_string()),
-                    label,
-                    None, // label_any not in new interface
-                    flat,
-                    json,
-                    labels,
+                    commands::issue::list::ListParams {
+                        show_all: all,
+                        status_filter: status.map(|s| s.as_str().to_string()),
+                        priority_filter: priority.map(|p| p.as_u32()),
+                        kind_filter: kind.map(|k| k.as_str().to_string()),
+                        label_filter: label,
+                        label_any_filter: None,
+                        flat,
+                        json_output: json,
+                        show_labels: labels,
+                        created_after,
+                        created_before,
+                        timezone,
+                    },
                 )?;
             }
             IssueCommand::Show { id } => {

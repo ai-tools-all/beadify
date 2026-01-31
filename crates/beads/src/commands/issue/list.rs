@@ -194,31 +194,41 @@ fn print_tree_node(
     Ok(())
 }
 
+/// Parameters for listing issues
+pub struct ListParams {
+    pub show_all: bool,
+    pub status_filter: Option<String>,
+    pub priority_filter: Option<u32>,
+    pub kind_filter: Option<String>,
+    pub label_filter: Option<String>,
+    pub label_any_filter: Option<String>,
+    pub flat: bool,
+    pub json_output: bool,
+    pub show_labels: bool,
+    pub created_after: Option<String>,
+    pub created_before: Option<String>,
+    pub timezone: Option<String>,
+}
+
 /// Run the issue list command
-///
-/// # Arguments
-/// * `repo` - The beads repository
-/// * `show_all` - Show all issues including closed
-/// * `status_filter` - Filter by status (optional)
-/// * `priority_filter` - Filter by priority as u32 (optional)
-/// * `kind_filter` - Filter by kind (optional)
-/// * `label_filter` - Filter by labels (AND - must have ALL) (optional)
-/// * `label_any_filter` - Filter by labels (OR - must have at least one) (optional)
-/// * `flat` - Show flat list instead of tree hierarchy
-/// * `json_output` - Output as JSON
-/// * `show_labels` - Show labels column in table view
-pub fn run(
-    repo: BeadsRepo,
-    show_all: bool,
-    status_filter: Option<String>,
-    priority_filter: Option<u32>,
-    kind_filter: Option<String>,
-    label_filter: Option<String>,
-    label_any_filter: Option<String>,
-    flat: bool,
-    json_output: bool,
-    show_labels: bool,
-) -> Result<()> {
+pub fn run(repo: BeadsRepo, params: ListParams) -> Result<()> {
+    let ListParams {
+        show_all,
+        status_filter,
+        priority_filter,
+        kind_filter,
+        label_filter,
+        label_any_filter,
+        flat,
+        json_output,
+        show_labels,
+        created_after,
+        created_before,
+        timezone,
+    } = params;
+    // Get user's timezone for date parsing
+    let user_tz = beads_core::tz::get_user_timezone(timezone.as_deref())?;
+
     let mut issues = get_all_issues(&repo)?;
 
     // Filter issues based on status
@@ -255,6 +265,18 @@ pub fn run(
         });
     }
 
+    // Apply created_after filter
+    if let Some(ref date_str) = created_after {
+        let after_date = beads_core::query::parse_date(date_str, user_tz)?;
+        issues.retain(|issue| beads_core::query::created_after(&issue.created_at, &after_date));
+    }
+
+    // Apply created_before filter
+    if let Some(ref date_str) = created_before {
+        let before_date = beads_core::query::parse_date(date_str, user_tz)?;
+        issues.retain(|issue| beads_core::query::created_before(&issue.created_at, &before_date));
+    }
+
     if issues.is_empty() {
         if json_output {
             println!("{}", serde_json::to_string_pretty(&json!({"issues": []}))?);
@@ -268,12 +290,19 @@ pub fn run(
         let issues_json: Vec<Value> = issues
             .iter()
             .map(|issue| {
+                // Convert created_at to local timezone for display
+                let created_at_local =
+                    beads_core::tz::utc_to_local_string(&issue.created_at, user_tz)
+                        .unwrap_or_else(|_| issue.created_at.clone());
+
                 json!({
                     "id": issue.id,
                     "title": issue.title,
                     "kind": issue.kind,
                     "priority": issue.priority,
                     "status": issue.status,
+                    "created_at_utc": issue.created_at,
+                    "created_at_local": created_at_local,
                     "description": issue.description,
                     "design": issue.design,
                     "acceptance_criteria": issue.acceptance_criteria,

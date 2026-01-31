@@ -12,14 +12,16 @@ use crate::error::Result;
 pub fn get_user_timezone(explicit_tz: Option<&str>) -> Result<Tz> {
     // 1. CLI flag override
     if let Some(tz_str) = explicit_tz {
-        return Tz::from_str(tz_str)
-            .map_err(|_| crate::error::Error::Other { message: format!("Invalid timezone: {}", tz_str) });
+        return Tz::from_str(tz_str).map_err(|_| crate::error::Error::Other {
+            message: format!("Invalid timezone: {}", tz_str),
+        });
     }
 
     // 2. TZ environment variable
     if let Ok(tz_str) = std::env::var("TZ") {
-        return Tz::from_str(&tz_str)
-            .map_err(|_| crate::error::Error::Other { message: format!("Invalid TZ env var: {}", tz_str) });
+        return Tz::from_str(&tz_str).map_err(|_| crate::error::Error::Other {
+            message: format!("Invalid TZ env var: {}", tz_str),
+        });
     }
 
     // 3. System default timezone detection
@@ -60,8 +62,10 @@ pub fn get_user_timezone(explicit_tz: Option<&str>) -> Result<Tz> {
 /// Convert UTC timestamp to user's local timezone
 /// Returns formatted string: "2026-01-31 15:30 EST"
 pub fn utc_to_local_string(utc_timestamp: &str, user_tz: Tz) -> Result<String> {
-    let utc_dt = DateTime::parse_from_rfc3339(utc_timestamp)
-        .map_err(|e| crate::error::Error::Other { message: format!("Failed to parse timestamp: {}", e) })?;
+    let utc_dt =
+        DateTime::parse_from_rfc3339(utc_timestamp).map_err(|e| crate::error::Error::Other {
+            message: format!("Failed to parse timestamp: {}", e),
+        })?;
 
     let local_dt = utc_dt.with_timezone(&user_tz);
     let tz_name = user_tz.name();
@@ -81,9 +85,9 @@ pub fn parse_relative_in_timezone(expr: &str, user_tz: Tz) -> Result<String> {
         });
     }
 
-    let num: i64 = parts[0]
-        .parse()
-        .map_err(|_| crate::error::Error::Other { message: format!("Invalid number: {}", parts[0]) })?;
+    let num: i64 = parts[0].parse().map_err(|_| crate::error::Error::Other {
+        message: format!("Invalid number: {}", parts[0]),
+    })?;
 
     let unit = parts[parts.len() - 2];
 
@@ -127,13 +131,8 @@ pub fn parse_absolute_in_timezone(date_str: &str, user_tz: Tz) -> Result<String>
         let local_dt = user_tz
             .from_local_datetime(&naive_dt)
             .single()
-            .ok_or_else(|| {
-                crate::error::Error::Other {
-                    message: format!(
-                        "Ambiguous or invalid local datetime: {}",
-                        date_str
-                    ),
-                }
+            .ok_or_else(|| crate::error::Error::Other {
+                message: format!("Ambiguous or invalid local datetime: {}", date_str),
             })?;
         return Ok(local_dt.with_timezone(&Utc).to_rfc3339());
     }

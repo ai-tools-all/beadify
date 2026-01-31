@@ -21,6 +21,13 @@ beads list                    # shows only open issues (with blockers indented)
 beads list --all              # shows all issues including closed
 beads list --status in_progress  # filter by status
 
+# Filter by creation date
+beads issue list --created-after "1 week ago"     # issues from past week
+beads issue list --created-after "2026-01-20"     # issues after date
+beads issue list --created-before "2026-01-01"    # issues before date
+beads issue list --created-after "2026-01-01" --created-before "2026-02-01"
+beads issue list --created-after "1 week ago" --timezone "America/New_York"
+
 # Search issues by text query
 beads search "sync"                              # search in all fields
 beads search "bug" --kind bug --status open      # search with filters
@@ -218,6 +225,27 @@ git commit -m "refactor(bd-018): simplify event parsing logic"
 - ✅ Only commit files changed for current issue (never `git add .`)
 - ✅ Use conventional commit format
 - ✅ Keep titles short and focused
+
+## DateTime Queries
+
+Filter issues by creation date using relative or absolute dates:
+
+```bash
+# Relative dates
+beads issue list --created-after "1 week ago"
+beads issue list --created-after "3 days ago"
+beads issue list --created-after "2 months ago"
+
+# Absolute dates
+beads issue list --created-after "2026-01-20"
+beads issue list --created-before "2026-02-01"
+beads issue list --created-after "2026-01-01" --created-before "2026-02-01"
+
+# With timezone support
+beads issue list --created-after "1 week ago" --timezone "America/New_York"
+```
+
+Supports timezone-aware queries with automatic system timezone detection. See [DateTime Queries](docs/DATETIME_QUERIES.md) for full documentation.
 
 ## Key Reminders
 

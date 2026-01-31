@@ -190,16 +190,27 @@ fn print_tree_node(
     Ok(())
 }
 
-pub fn run(
-    repo: BeadsRepo,
-    show_all: bool,
-    status_filter: Option<String>,
-    flat: bool,
-    label_filter: Option<String>,
-    label_any_filter: Option<String>,
-    json_output: bool,
-    show_labels: bool,
-) -> Result<()> {
+/// Parameters for listing
+pub struct ListParams {
+    pub show_all: bool,
+    pub status_filter: Option<String>,
+    pub flat: bool,
+    pub label_filter: Option<String>,
+    pub label_any_filter: Option<String>,
+    pub json_output: bool,
+    pub show_labels: bool,
+}
+
+pub fn run(repo: BeadsRepo, params: ListParams) -> Result<()> {
+    let ListParams {
+        show_all,
+        status_filter,
+        flat,
+        label_filter,
+        label_any_filter,
+        json_output,
+        show_labels,
+    } = params;
     let mut issues = get_all_issues(&repo)?;
 
     // Filter issues based on status
