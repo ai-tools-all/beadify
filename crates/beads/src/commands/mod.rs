@@ -3,6 +3,7 @@ pub mod delete;
 pub mod dep;
 pub mod doc;
 pub mod init;
+pub mod issue;
 pub mod label;
 pub mod list;
 pub mod ready;

@@ -14,6 +14,10 @@ pub fn create_schema(conn: &Connection) -> Result<()> {
             kind TEXT NOT NULL,
             priority INTEGER NOT NULL,
             status TEXT NOT NULL DEFAULT 'open',
+            description TEXT,
+            design TEXT,
+            acceptance_criteria TEXT,
+            notes TEXT,
             data TEXT
         );
 
@@ -46,17 +50,29 @@ pub fn create_schema(conn: &Connection) -> Result<()> {
         );
         "#,
     )?;
-    
-    // Add data column to existing table if it doesn't exist
+
+    // Add columns to existing table if they don't exist
     let mut stmt = conn.prepare("PRAGMA table_info(issues)")?;
     let columns: Vec<String> = stmt
         .query_map([], |row| row.get::<_, String>(1))?
         .collect::<std::result::Result<Vec<_>, _>>()?;
-    
+
     if !columns.contains(&"data".to_string()) {
         conn.execute("ALTER TABLE issues ADD COLUMN data TEXT", [])?;
     }
-    
+    if !columns.contains(&"description".to_string()) {
+        conn.execute("ALTER TABLE issues ADD COLUMN description TEXT", [])?;
+    }
+    if !columns.contains(&"design".to_string()) {
+        conn.execute("ALTER TABLE issues ADD COLUMN design TEXT", [])?;
+    }
+    if !columns.contains(&"acceptance_criteria".to_string()) {
+        conn.execute("ALTER TABLE issues ADD COLUMN acceptance_criteria TEXT", [])?;
+    }
+    if !columns.contains(&"notes".to_string()) {
+        conn.execute("ALTER TABLE issues ADD COLUMN notes TEXT", [])?;
+    }
+
     Ok(())
 }
 
@@ -64,13 +80,17 @@ pub fn upsert_issue(tx: &Transaction<'_>, issue: &Issue) -> Result<()> {
     let data = issue.data.as_ref().map(|v| v.to_string());
     tx.execute(
         r#"
-        INSERT INTO issues (id, title, kind, priority, status, data)
-        VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+        INSERT INTO issues (id, title, kind, priority, status, description, design, acceptance_criteria, notes, data)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
         ON CONFLICT(id) DO UPDATE SET
             title = excluded.title,
             kind = excluded.kind,
             priority = excluded.priority,
             status = excluded.status,
+            description = excluded.description,
+            design = excluded.design,
+            acceptance_criteria = excluded.acceptance_criteria,
+            notes = excluded.notes,
             data = excluded.data
         "#,
         params![
@@ -79,6 +99,10 @@ pub fn upsert_issue(tx: &Transaction<'_>, issue: &Issue) -> Result<()> {
             issue.kind,
             issue.priority,
             issue.status,
+            issue.description,
+            issue.design,
+            issue.acceptance_criteria,
+            issue.notes,
             data
         ],
     )?;
@@ -87,11 +111,11 @@ pub fn upsert_issue(tx: &Transaction<'_>, issue: &Issue) -> Result<()> {
 
 pub fn get_issue(conn: &Connection, id: &str) -> Result<Option<Issue>> {
     let mut stmt = conn.prepare(
-        "SELECT id, title, kind, priority, status, data FROM issues WHERE id = ?1",
+        "SELECT id, title, kind, priority, status, description, design, acceptance_criteria, notes, data FROM issues WHERE id = ?1",
     )?;
     let issue = stmt
         .query_row(params![id], |row| {
-            let data_str: Option<String> = row.get(5)?;
+            let data_str: Option<String> = row.get(9)?;
             let data = data_str.and_then(|s| serde_json::from_str(&s).ok());
             Ok(Issue {
                 id: row.get(0)?,
@@ -99,10 +123,10 @@ pub fn get_issue(conn: &Connection, id: &str) -> Result<Option<Issue>> {
                 kind: row.get(2)?,
                 priority: row.get::<_, i64>(3)? as u32,
                 status: row.get(4)?,
-                description: None,
-                design: None,
-                acceptance_criteria: None,
-                notes: None,
+                description: row.get(5)?,
+                design: row.get(6)?,
+                acceptance_criteria: row.get(7)?,
+                notes: row.get(8)?,
                 data,
             })
         })
@@ -112,10 +136,10 @@ pub fn get_issue(conn: &Connection, id: &str) -> Result<Option<Issue>> {
 
 pub fn get_all_issues(conn: &Connection) -> Result<Vec<Issue>> {
     let mut stmt =
-        conn.prepare("SELECT id, title, kind, priority, status, data FROM issues ORDER BY id ASC")?;
+        conn.prepare("SELECT id, title, kind, priority, status, description, design, acceptance_criteria, notes, data FROM issues ORDER BY id ASC")?;
     let issues = stmt
         .query_map([], |row| {
-            let data_str: Option<String> = row.get(5)?;
+            let data_str: Option<String> = row.get(9)?;
             let data = data_str.and_then(|s| serde_json::from_str(&s).ok());
             Ok(Issue {
                 id: row.get(0)?,
@@ -123,10 +147,10 @@ pub fn get_all_issues(conn: &Connection) -> Result<Vec<Issue>> {
                 kind: row.get(2)?,
                 priority: row.get::<_, i64>(3)? as u32,
                 status: row.get(4)?,
-                description: None,
-                design: None,
-                acceptance_criteria: None,
-                notes: None,
+                description: row.get(5)?,
+                design: row.get(6)?,
+                acceptance_criteria: row.get(7)?,
+                notes: row.get(8)?,
                 data,
             })
         })?

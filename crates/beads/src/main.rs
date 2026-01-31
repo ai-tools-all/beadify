@@ -4,6 +4,7 @@ use tracing::info;
 
 use beads_core::repo::find_repo;
 
+mod cli;
 mod commands;
 
 #[derive(Parser)]
@@ -22,7 +23,10 @@ enum Commands {
         #[arg(long)]
         prefix: String,
     },
-    /// Create a new issue
+    /// Create a new issue (DEPRECATED: use `issue create` instead)
+    #[command(
+        long_about = "Create a new issue.\n\nNOTE: This command is deprecated. Use 'beads issue create' with individual flags instead.\nExample: beads issue create --title \"...\" --priority high"
+    )]
     Create {
         #[arg(short, long)]
         title: String,
@@ -127,6 +131,98 @@ enum Commands {
         #[arg(long)]
         from_file: Option<String>,
     },
+    /// Manage issues (create, update, list, show)
+    #[command(subcommand)]
+    Issue(IssueCommand),
+}
+
+#[derive(Subcommand)]
+enum IssueCommand {
+    /// Create a new issue with natural CLI interface
+    Create {
+        #[arg(short, long)]
+        title: String,
+
+        #[arg(long)]
+        description: Option<String>,
+
+        #[arg(long)]
+        kind: Option<String>, // "bug", "feature", etc
+
+        #[arg(long)]
+        priority: Option<String>, // "low", "medium", "high", "urgent"
+
+        #[arg(short, long)]
+        label: Option<String>, // comma-separated
+
+        #[arg(long)]
+        depends_on: Vec<String>,
+
+        #[arg(long)]
+        doc: Vec<String>, // name:path format
+
+        #[arg(long)]
+        data: Option<String>, // JSON escape hatch
+    },
+
+    /// Update an existing issue with natural CLI interface
+    Update {
+        id: String,
+
+        #[arg(long)]
+        title: Option<String>,
+
+        #[arg(long)]
+        description: Option<String>,
+
+        #[arg(long)]
+        kind: Option<String>,
+
+        #[arg(long)]
+        priority: Option<String>, // "low", "medium", "high", "urgent"
+
+        #[arg(long)]
+        status: Option<String>, // "open", "in_progress", "review", "closed"
+
+        #[arg(long)]
+        add_label: Option<String>, // comma-separated labels to add
+
+        #[arg(long)]
+        remove_label: Option<String>, // comma-separated labels to remove
+
+        #[arg(long)]
+        data: Option<String>, // JSON escape hatch
+    },
+
+    /// List issues with filtering
+    List {
+        #[arg(long)]
+        all: bool,
+
+        #[arg(long)]
+        status: Option<String>,
+
+        #[arg(long)]
+        priority: Option<String>,
+
+        #[arg(long)]
+        kind: Option<String>,
+
+        #[arg(long)]
+        label: Option<String>, // filter by labels
+
+        #[arg(long)]
+        flat: bool,
+
+        #[arg(long)]
+        json: bool,
+
+        #[arg(long)]
+        labels: bool,
+    },
+
+    /// Show issue details
+    Show { id: String },
 }
 
 #[derive(Subcommand)]
@@ -222,7 +318,13 @@ fn main() -> Result<()> {
             info!(command = "init", %prefix);
             commands::init::run(&prefix)?;
         }
-        Commands::Create { title, data, depends_on, label, doc } => {
+        Commands::Create {
+            title,
+            data,
+            depends_on,
+            label,
+            doc,
+        } => {
             info!(command = "create", %title, deps = depends_on.len(), label = label.as_deref(), docs = doc.len());
             commands::create::run(repo.unwrap(), &title, &data, depends_on, label, doc)?;
         }
@@ -330,7 +432,85 @@ fn main() -> Result<()> {
         Commands::Delete { issue_ids, force, cascade, from_file } => {
             info!(command = "delete", ids = issue_ids.len(), force, cascade, from_file = from_file.as_deref());
             commands::delete::run(repo.unwrap(), issue_ids, force, cascade, from_file)?;
-        },
+        }
+        Commands::Issue(issue_cmd) => match issue_cmd {
+            IssueCommand::Create {
+                title,
+                description,
+                kind,
+                priority,
+                label,
+                depends_on,
+                doc,
+                data,
+            } => {
+                info!(command = "issue create", %title);
+                commands::issue::create::run(
+                    repo.unwrap(),
+                    &title,
+                    description,
+                    kind,
+                    priority,
+                    label,
+                    depends_on,
+                    doc,
+                    data,
+                )?;
+            }
+            IssueCommand::Update {
+                id,
+                title,
+                description,
+                kind,
+                priority,
+                status,
+                add_label,
+                remove_label,
+                data,
+            } => {
+                info!(command = "issue update", %id);
+                commands::issue::update::run(
+                    repo.unwrap(),
+                    &id,
+                    title,
+                    description,
+                    kind,
+                    priority,
+                    status,
+                    add_label,
+                    remove_label,
+                    data,
+                )?;
+            }
+            IssueCommand::List {
+                all,
+                status,
+                priority,
+                kind,
+                label,
+                flat,
+                json,
+                labels,
+            } => {
+                info!(command = "issue list", all, status = status.as_deref(), priority = priority.as_deref(), kind = kind.as_deref());
+                commands::issue::list::run(
+                    repo.unwrap(),
+                    all,
+                    status,
+                    priority,
+                    kind,
+                    label,
+                    None, // label_any not in new interface
+                    flat,
+                    json,
+                    labels,
+                )?;
+            }
+            IssueCommand::Show { id } => {
+                info!(command = "issue show", %id);
+                commands::issue::show::run(repo.unwrap(), &id)?;
+            }
+        }
     }
 
     Ok(())
