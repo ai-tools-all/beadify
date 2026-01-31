@@ -246,20 +246,20 @@ pub fn run(
         let roots = find_roots(&graph, &repo)?;
 
         if show_labels {
-            println!("{:<2} {:<8} {:<10} {:<4} {:<20} {}", " ", "ID", "Kind", "Prio", "Labels", "Title");
+            println!("{:<2} {:<8} {:<10} {:<4} {:<20} Title", " ", "ID", "Kind", "Prio", "Labels");
             println!("{}", "─".repeat(100));
         } else {
-            println!("{:<2} {:<8} {:<10} {:<4} {}", " ", "ID", "Kind", "Prio", "Title");
+            println!("{:<2} {:<8} {:<10} {:<4} Title", " ", "ID", "Kind", "Prio");
             println!("{}", "─".repeat(70));
         }
 
         for root_id in roots {
             print_tree_node(&repo, &graph, &root_id, "", 0, true, show_labels)?;
         }
-    } else {
+        } else {
         // Flat list view (old behavior)
         if show_labels {
-            println!("{:<2} {:<8} {:<10} {:<4} {:<20} {}", " ", "ID", "Kind", "Prio", "Labels", "Title");
+            println!("{:<2} {:<8} {:<10} {:<4} {:<20} Title", " ", "ID", "Kind", "Prio", "Labels");
             println!("{}", "─".repeat(100));
 
             for issue in issues {
@@ -290,16 +290,16 @@ pub fn run(
                         if let Ok(Some(dep_issue)) = get_issue(&repo, &dep_id) {
                             let dep_priority = format!("p{}", dep_issue.priority);
                             println!(
-                                "  {} ↳ {:<8} {:<10} {} - {}",
-                                " ", dep_id, dep_issue.kind, dep_priority, dep_issue.title
+                                "    ↳ {:<8} {:<10} {} - {}",
+                                dep_id, dep_issue.kind, dep_priority, dep_issue.title
                             );
                         }
-                    }
-                }
-            }
-        } else {
-            println!("{:<2} {:<8} {:<10} {:<4} {}", " ", "ID", "Kind", "Prio", "Title");
-            println!("{}", "─".repeat(70));
+                        }
+                        }
+                        }
+                        } else {
+                        println!("{:<2} {:<8} {:<10} {:<4} Title", " ", "ID", "Kind", "Prio");
+                        println!("{}", "─".repeat(70));
 
             for issue in issues {
                 let indicator = status_indicator(&issue.status);
@@ -316,15 +316,15 @@ pub fn run(
                         if let Ok(Some(dep_issue)) = get_issue(&repo, &dep_id) {
                             let dep_priority = format!("p{}", dep_issue.priority);
                             println!(
-                                "  {} ↳ {:<8} {:<10} {} - {}",
-                                " ", dep_id, dep_issue.kind, dep_priority, dep_issue.title
+                                "    ↳ {:<8} {:<10} {} - {}",
+                                dep_id, dep_issue.kind, dep_priority, dep_issue.title
                             );
                         }
-                    }
-                }
-            }
-        }
-    }
-    
-    Ok(())
-}
+                        }
+                        }
+                        }
+                        }
+                        }
+                        
+                        Ok(())
+                        }

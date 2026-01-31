@@ -110,7 +110,7 @@ pub fn list(repo: BeadsRepo, issue_id: &str) -> Result<()> {
 
     println!("Documents for {}:", issue_id);
     println!();
-    println!("{:<30} {}", "Document", "Hash (first 8 chars)");
+    println!("{:<30} Hash (first 8 chars)", "Document");
     println!("{}", "-".repeat(50));
 
     let mut doc_list: Vec<_> = documents.iter().collect();
