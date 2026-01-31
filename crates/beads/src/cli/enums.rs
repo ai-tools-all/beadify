@@ -9,7 +9,6 @@ use std::str::FromStr;
 /// Priority levels for issues
 /// Maps user-friendly strings and numeric values to internal u32 values
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(clap::ValueEnum)]
 pub enum Priority {
     /// Low priority (0)
     Low,
@@ -31,27 +30,6 @@ impl Priority {
             Priority::Urgent => 3,
         }
     }
-
-    /// Parse from string, accepting both names and numbers for backward compatibility
-    pub fn from_str_compat(s: &str) -> Option<Self> {
-        // Try parsing as name first (case-insensitive)
-        match s.to_lowercase().as_str() {
-            "low" => Some(Priority::Low),
-            "medium" => Some(Priority::Medium),
-            "high" => Some(Priority::High),
-            "urgent" => Some(Priority::Urgent),
-            _ => {
-                // Try parsing as number
-                match s.parse::<u32>() {
-                    Ok(0) => Some(Priority::Low),
-                    Ok(1) => Some(Priority::Medium),
-                    Ok(2) => Some(Priority::High),
-                    Ok(3) => Some(Priority::Urgent),
-                    _ => None,
-                }
-            }
-        }
-    }
 }
 
 impl fmt::Display for Priority {
@@ -65,9 +43,39 @@ impl fmt::Display for Priority {
     }
 }
 
+impl clap::ValueEnum for Priority {
+    fn value_variants<'a>() -> &'a [Self] {
+        &[Priority::Low, Priority::Medium, Priority::High, Priority::Urgent]
+    }
+
+    fn to_possible_value(&self) -> Option<clap::builder::PossibleValue> {
+        Some(match self {
+            Priority::Low => clap::builder::PossibleValue::new("low")
+                .alias("LOW")
+                .alias("Low")
+                .alias("0")
+                .help("Low priority (0)"),
+            Priority::Medium => clap::builder::PossibleValue::new("medium")
+                .alias("MEDIUM")
+                .alias("Medium")
+                .alias("1")
+                .help("Medium priority (1) - default"),
+            Priority::High => clap::builder::PossibleValue::new("high")
+                .alias("HIGH")
+                .alias("High")
+                .alias("2")
+                .help("High priority (2)"),
+            Priority::Urgent => clap::builder::PossibleValue::new("urgent")
+                .alias("URGENT")
+                .alias("Urgent")
+                .alias("3")
+                .help("Urgent priority (3)"),
+        })
+    }
+}
+
 /// Issue kinds
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(clap::ValueEnum)]
 pub enum Kind {
     /// Bug fix
     Bug,
@@ -103,14 +111,47 @@ impl fmt::Display for Kind {
     }
 }
 
+impl clap::ValueEnum for Kind {
+    fn value_variants<'a>() -> &'a [Self] {
+        &[Kind::Bug, Kind::Feature, Kind::Refactor, Kind::Docs, Kind::Chore, Kind::Task]
+    }
+
+    fn to_possible_value(&self) -> Option<clap::builder::PossibleValue> {
+        Some(match self {
+            Kind::Bug => clap::builder::PossibleValue::new("bug")
+                .alias("BUG")
+                .alias("Bug")
+                .help("Bug fix"),
+            Kind::Feature => clap::builder::PossibleValue::new("feature")
+                .alias("FEATURE")
+                .alias("Feature")
+                .help("New feature"),
+            Kind::Refactor => clap::builder::PossibleValue::new("refactor")
+                .alias("REFACTOR")
+                .alias("Refactor")
+                .help("Code refactoring"),
+            Kind::Docs => clap::builder::PossibleValue::new("docs")
+                .alias("DOCS")
+                .alias("Docs")
+                .help("Documentation"),
+            Kind::Chore => clap::builder::PossibleValue::new("chore")
+                .alias("CHORE")
+                .alias("Chore")
+                .help("Maintenance task"),
+            Kind::Task => clap::builder::PossibleValue::new("task")
+                .alias("TASK")
+                .alias("Task")
+                .help("General task"),
+        })
+    }
+}
+
 /// Issue statuses
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(clap::ValueEnum)]
 pub enum Status {
     /// Issue is open and ready to work on
     Open,
     /// Issue is being worked on
-    #[value(alias = "in-progress", alias = "inprogress")]
     InProgress,
     /// Issue is ready for review
     Review,
@@ -136,30 +177,42 @@ impl fmt::Display for Status {
     }
 }
 
+impl clap::ValueEnum for Status {
+    fn value_variants<'a>() -> &'a [Self] {
+        &[Status::Open, Status::InProgress, Status::Review, Status::Closed]
+    }
+
+    fn to_possible_value(&self) -> Option<clap::builder::PossibleValue> {
+        Some(match self {
+            Status::Open => clap::builder::PossibleValue::new("open")
+                .alias("OPEN")
+                .alias("Open")
+                .help("Issue is open and ready to work on"),
+            Status::InProgress => clap::builder::PossibleValue::new("in-progress")
+                .alias("IN-PROGRESS")
+                .alias("In-Progress")
+                .alias("in_progress")
+                .alias("IN_PROGRESS")
+                .alias("In_Progress")
+                .alias("inprogress")
+                .alias("INPROGRESS")
+                .alias("InProgress")
+                .help("Issue is being worked on"),
+            Status::Review => clap::builder::PossibleValue::new("review")
+                .alias("REVIEW")
+                .alias("Review")
+                .help("Issue is ready for review"),
+            Status::Closed => clap::builder::PossibleValue::new("closed")
+                .alias("CLOSED")
+                .alias("Closed")
+                .help("Issue is closed"),
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_priority_from_str_compat() {
-        // Names (case insensitive)
-        assert_eq!(Priority::from_str_compat("low"), Some(Priority::Low));
-        assert_eq!(Priority::from_str_compat("LOW"), Some(Priority::Low));
-        assert_eq!(Priority::from_str_compat("Low"), Some(Priority::Low));
-        assert_eq!(Priority::from_str_compat("medium"), Some(Priority::Medium));
-        assert_eq!(Priority::from_str_compat("high"), Some(Priority::High));
-        assert_eq!(Priority::from_str_compat("urgent"), Some(Priority::Urgent));
-
-        // Numbers (backward compat)
-        assert_eq!(Priority::from_str_compat("0"), Some(Priority::Low));
-        assert_eq!(Priority::from_str_compat("1"), Some(Priority::Medium));
-        assert_eq!(Priority::from_str_compat("2"), Some(Priority::High));
-        assert_eq!(Priority::from_str_compat("3"), Some(Priority::Urgent));
-
-        // Invalid
-        assert_eq!(Priority::from_str_compat("critical"), None);
-        assert_eq!(Priority::from_str_compat("5"), None);
-    }
 
     #[test]
     fn test_priority_as_u32() {
