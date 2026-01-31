@@ -3,7 +3,7 @@
 //! Simple wrapper around the existing show command functionality.
 
 use anyhow::Result;
-use beads_core::{get_issue, get_dependencies, get_dependents, get_issue_labels, repo::BeadsRepo};
+use beads_core::{get_dependencies, get_dependents, get_issue, get_issue_labels, repo::BeadsRepo};
 
 /// Run the issue show command
 ///
@@ -30,7 +30,11 @@ pub fn run(repo: BeadsRepo, id: &str) -> Result<()> {
     println!("│ {:<59} │", format!("{}: {}", issue.id, issue.title));
     println!("├─────────────────────────────────────────────────────────────┤");
     println!("│ {:<15} {:<43} │", "Kind:", issue.kind);
-    println!("│ {:<15} {:<43} │", "Priority:", format!("p{}", issue.priority));
+    println!(
+        "│ {:<15} {:<43} │",
+        "Priority:",
+        format!("p{}", issue.priority)
+    );
     println!("│ {:<15} {:<43} │", "Status:", issue.status);
 
     // Labels
@@ -45,9 +49,15 @@ pub fn run(repo: BeadsRepo, id: &str) -> Result<()> {
         println!("│ Dependencies:                                               │");
         for dep_id in &dependencies {
             if let Ok(Some(dep_issue)) = get_issue(&repo, dep_id) {
-                println!("│   • {:<8} {:<10} - {:<30} │", dep_id, dep_issue.kind, dep_issue.title);
+                println!(
+                    "│   • {:<8} {:<10} - {:<30} │",
+                    dep_id, dep_issue.kind, dep_issue.title
+                );
             } else {
-                println!("│   • {:<8} (unknown)                              │", dep_id);
+                println!(
+                    "│   • {:<8} (unknown)                              │",
+                    dep_id
+                );
             }
         }
     }
@@ -58,9 +68,15 @@ pub fn run(repo: BeadsRepo, id: &str) -> Result<()> {
         println!("│ Dependents:                                                 │");
         for dep_id in &dependents {
             if let Ok(Some(dep_issue)) = get_issue(&repo, dep_id) {
-                println!("│   • {:<8} {:<10} - {:<30} │", dep_id, dep_issue.kind, dep_issue.title);
+                println!(
+                    "│   • {:<8} {:<10} - {:<30} │",
+                    dep_id, dep_issue.kind, dep_issue.title
+                );
             } else {
-                println!("│   • {:<8} (unknown)                              │", dep_id);
+                println!(
+                    "│   • {:<8} (unknown)                              │",
+                    dep_id
+                );
             }
         }
     }

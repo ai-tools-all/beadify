@@ -2,10 +2,7 @@ use std::fs;
 use std::io::{self, Write};
 
 use anyhow::{Context, Result};
-use beads_core::{
-    delete_issues_batch, get_delete_impact,
-    repo::BeadsRepo,
-};
+use beads_core::{delete_issues_batch, get_delete_impact, repo::BeadsRepo};
 
 pub fn run(
     repo: BeadsRepo,
@@ -47,33 +44,43 @@ pub fn run(
             match get_delete_impact(&repo, issue_id, cascade) {
                 Ok(impact) => {
                     println!("Issue: {}", issue_id);
-                    
+
                     if cascade && impact.issues_to_delete.len() > 1 {
-                        println!("  Would delete {} issue(s) (cascade):", impact.issues_to_delete.len());
+                        println!(
+                            "  Would delete {} issue(s) (cascade):",
+                            impact.issues_to_delete.len()
+                        );
                         for item in &impact.issues_to_delete {
                             println!("    - {} - {}", item.id, item.title);
                         }
                     } else {
-                        println!("  Would delete: {} - {}", 
-                            impact.issues_to_delete[0].id,
-                            impact.issues_to_delete[0].title);
+                        println!(
+                            "  Would delete: {} - {}",
+                            impact.issues_to_delete[0].id, impact.issues_to_delete[0].title
+                        );
                     }
-                    
+
                     if !impact.blocked_issues.is_empty() {
-                        println!("  ⚠️  {} issue(s) depend on this:", impact.blocked_issues.len());
+                        println!(
+                            "  ⚠️  {} issue(s) depend on this:",
+                            impact.blocked_issues.len()
+                        );
                         for blocked in &impact.blocked_issues {
                             println!("    - {}", blocked);
                         }
                     }
-                    
+
                     if !impact.text_references.is_empty() {
-                        println!("  📝 {} issue(s) reference this in text", impact.text_references.len());
+                        println!(
+                            "  📝 {} issue(s) reference this in text",
+                            impact.text_references.len()
+                        );
                     }
-                    
+
                     total_issues += impact.issues_to_delete.len();
                     total_blocked += impact.blocked_issues.len();
                     total_refs += impact.text_references.len();
-                    
+
                     println!();
                 }
                 Err(e) => {
@@ -115,7 +122,10 @@ pub fn run(
 
     // Report results
     if !result.successes.is_empty() {
-        println!("✓ Successfully deleted {} issue(s):", result.successes.len());
+        println!(
+            "✓ Successfully deleted {} issue(s):",
+            result.successes.len()
+        );
         for issue_id in &result.successes {
             println!("  - {}", issue_id);
         }

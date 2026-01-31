@@ -6,14 +6,13 @@ use beads_core::{add_document_to_issue, blob, get_issue_documents, repo::BeadsRe
 
 pub fn add(repo: BeadsRepo, issue_id: &str, file_path: &str) -> Result<()> {
     let path = Path::new(file_path);
-    
+
     if !path.exists() {
         anyhow::bail!("File not found: {}", file_path);
     }
 
-    let content = fs::read(path)
-        .with_context(|| format!("Failed to read file: {}", file_path))?;
-    
+    let content = fs::read(path).with_context(|| format!("Failed to read file: {}", file_path))?;
+
     let doc_name = path
         .file_name()
         .and_then(|n| n.to_str())
@@ -28,10 +27,10 @@ pub fn add(repo: BeadsRepo, issue_id: &str, file_path: &str) -> Result<()> {
 
 pub fn edit(repo: BeadsRepo, issue_id: &str, doc_name: &str) -> Result<()> {
     let documents = get_issue_documents(&repo, issue_id)?;
-    
-    let hash = documents
-        .get(doc_name)
-        .ok_or_else(|| anyhow::anyhow!("Document '{}' not found on issue {}", doc_name, issue_id))?;
+
+    let hash = documents.get(doc_name).ok_or_else(|| {
+        anyhow::anyhow!("Document '{}' not found on issue {}", doc_name, issue_id)
+    })?;
 
     let content = blob::read_blob(&repo, hash)?;
 
@@ -43,8 +42,16 @@ pub fn edit(repo: BeadsRepo, issue_id: &str, doc_name: &str) -> Result<()> {
     fs::write(&workspace_file, &content)
         .with_context(|| format!("Failed to write to workspace: {:?}", workspace_file))?;
 
-    println!("✓ Exported '{}' for {} to {}", doc_name, issue_id, workspace_file.display());
-    println!("  Edit the file and run 'beads doc sync {} {}' when done", issue_id, doc_name);
+    println!(
+        "✓ Exported '{}' for {} to {}",
+        doc_name,
+        issue_id,
+        workspace_file.display()
+    );
+    println!(
+        "  Edit the file and run 'beads doc sync {} {}' when done",
+        issue_id, doc_name
+    );
 
     Ok(())
 }
@@ -68,7 +75,7 @@ pub fn sync(repo: BeadsRepo, issue_id: &str, doc_name: &str) -> Result<()> {
     let new_hash = blob::write_blob(&repo, &content)?;
 
     let documents = get_issue_documents(&repo, issue_id)?;
-    
+
     if let Some(old_hash) = documents.get(doc_name) {
         if old_hash == &new_hash {
             println!("✓ No changes detected for '{}'", doc_name);
@@ -79,18 +86,18 @@ pub fn sync(repo: BeadsRepo, issue_id: &str, doc_name: &str) -> Result<()> {
     add_document_to_issue(&repo, issue_id, doc_name, &content)?;
 
     println!("✓ Synced changes for '{}' on {}", doc_name, issue_id);
-    
+
     print!("  Clean up workspace file? [y/N]: ");
     use std::io::{self, Write};
     io::stdout().flush()?;
-    
+
     let mut input = String::new();
     io::stdin().read_line(&mut input)?;
-    
+
     if input.trim().eq_ignore_ascii_case("y") {
         fs::remove_file(&workspace_file)?;
         println!("  Removed {}", workspace_file.display());
-        
+
         if docs_workspace.read_dir()?.next().is_none() {
             fs::remove_dir(&docs_workspace)?;
             println!("  Removed empty workspace directory");

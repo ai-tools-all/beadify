@@ -28,7 +28,7 @@ pub fn list(repo: BeadsRepo, issue_id: &str) -> Result<()> {
 
 pub fn list_all(repo: BeadsRepo) -> Result<()> {
     let labels = beads_core::get_all_labels(&repo)?;
-    
+
     if labels.is_empty() {
         println!("No labels in database");
         return Ok(());

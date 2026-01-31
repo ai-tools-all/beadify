@@ -8,7 +8,7 @@ use std::fs;
 use anyhow::Result;
 use beads_core::{
     add_document_to_issue, add_label_to_issue, create_issue_with_data, repo::BeadsRepo,
-    update_issue, BeadsError, IssueUpdate,
+    update_issue, Error, IssueUpdate,
 };
 
 /// Run the issue create command
@@ -35,17 +35,32 @@ pub fn run(
     data: Option<String>,
 ) -> Result<()> {
     // 1. Validate title
-     if title.trim().is_empty() {
-         return Err(BeadsError::missing_field("title").into());
-     }
+    if title.trim().is_empty() {
+        return Err(Error::missing_field("title", "--kind task --priority medium").into());
+    }
 
     // 2. Parse JSON --data if provided
     let (json_kind, json_priority, json_desc): (Option<String>, Option<u32>, Option<String>) =
         if let Some(data_str) = &data {
             let parsed = serde_json::from_str::<serde_json::Value>(data_str)
-                .map_err(BeadsError::invalid_json_for_create)?;
-            let kind = parsed.get("kind").and_then(|v| v.as_str()).map(|s| s.to_string());
-            let priority = parsed.get("priority").and_then(|v| v.as_u64()).map(|p| p as u32);
+                .map_err(|e| Error::InvalidJson {
+                    context: "issue create --data".to_string(),
+                    expected_format: r#"{
+  "description": "string",
+  "priority": 0-3,
+  "kind": "bug|feature|refactor|docs|chore|task"
+}"#.to_string(),
+                    example: r#"beads issue create --title "Fix bug" --data '{"priority":2,"kind":"bug"}'"#.to_string(),
+                    source: e,
+                })?;
+            let kind = parsed
+                .get("kind")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            let priority = parsed
+                .get("priority")
+                .and_then(|v| v.as_u64())
+                .map(|p| p as u32);
             let desc = parsed
                 .get("description")
                 .and_then(|v| v.as_str())
@@ -64,9 +79,8 @@ pub fn run(
     let final_description = description.or(json_desc);
 
     // 4. Create issue
-    let data_json: Option<serde_json::Value> = data
-        .as_ref()
-        .and_then(|s| serde_json::from_str(s).ok());
+    let data_json: Option<serde_json::Value> =
+        data.as_ref().and_then(|s| serde_json::from_str(s).ok());
 
     let event = create_issue_with_data(
         &repo,
@@ -113,12 +127,10 @@ pub fn run(
         let file_path = parts[1];
 
         match fs::read(file_path) {
-            Ok(content) => {
-                match add_document_to_issue(&repo, &event.id, doc_name, &content) {
-                    Ok(_) => println!("Attached '{}' to {}", doc_name, event.id),
-                    Err(e) => eprintln!("Failed to attach '{}': {}", doc_name, e),
-                }
-            }
+            Ok(content) => match add_document_to_issue(&repo, &event.id, doc_name, &content) {
+                Ok(_) => println!("Attached '{}' to {}", doc_name, event.id),
+                Err(e) => eprintln!("Failed to attach '{}': {}", doc_name, e),
+            },
             Err(e) => eprintln!("Failed to read file '{}': {}", file_path, e),
         }
     }

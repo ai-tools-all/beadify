@@ -1,5 +1,5 @@
 use anyhow::Result;
-use beads_core::{repo::BeadsRepo, update_issue, BeadsError, IssueUpdate};
+use beads_core::{repo::BeadsRepo, update_issue, Error, IssueUpdate};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -23,22 +23,27 @@ pub fn run(
     status: Option<String>,
     data: Option<String>,
 ) -> Result<()> {
-     let mut update = IssueUpdate {
-         title,
-         kind,
-         priority,
-         status,
-         ..Default::default()
-     };
+    let mut update = IssueUpdate {
+        title,
+        kind,
+        priority,
+        status,
+        ..Default::default()
+    };
 
-     if let Some(data_str) = data {
-         let issue_data: IssueData = serde_json::from_str(&data_str)
-             .map_err(BeadsError::invalid_json_for_update)?;
-         update.description = issue_data.description;
-         update.design = issue_data.design;
-         update.acceptance_criteria = issue_data.acceptance_criteria;
-         update.notes = issue_data.notes;
-     }
+    if let Some(data_str) = data {
+        let issue_data: IssueData =
+            serde_json::from_str(&data_str).map_err(|e| Error::InvalidJson {
+                context: "update --data (legacy)".to_string(),
+                expected_format: r#"{"description":"string","design":"string"}"#.to_string(),
+                example: r#"beads update bd-042 --data '{"description":"Updated"}'"#.to_string(),
+                source: e,
+            })?;
+        update.description = issue_data.description;
+        update.design = issue_data.design;
+        update.acceptance_criteria = issue_data.acceptance_criteria;
+        update.notes = issue_data.notes;
+    }
 
     let event = update_issue(&repo, id, update)?;
     println!("Updated issue {} via event {}", event.id, event.event_id);

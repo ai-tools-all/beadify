@@ -47,9 +47,7 @@ enum Commands {
     },
     /// Show issue details (DEPRECATED: use `issue show` instead)
     #[command(hide = true)]
-    Show {
-        id: String,
-    },
+    Show { id: String },
     /// List all issues from the local cache (DEPRECATED: use `issue list` instead)
     #[command(hide = true)]
     List {
@@ -355,8 +353,26 @@ fn main() -> Result<()> {
             json,
             labels,
         } => {
-            info!(command = "list", all, status = status.as_deref(), flat, label = label.as_deref(), label_any = label_any.as_deref(), json, labels);
-            commands::list::run(repo.unwrap(), all, status, flat, label, label_any, json, labels)?;
+            info!(
+                command = "list",
+                all,
+                status = status.as_deref(),
+                flat,
+                label = label.as_deref(),
+                label_any = label_any.as_deref(),
+                json,
+                labels
+            );
+            commands::list::run(
+                repo.unwrap(),
+                all,
+                status,
+                flat,
+                label,
+                label_any,
+                json,
+                labels,
+            )?;
         }
         Commands::Update {
             id,
@@ -415,11 +431,17 @@ fn main() -> Result<()> {
             }
         },
         Commands::Label(label_cmd) => match label_cmd {
-            LabelCommand::Add { issue_id, label_name } => {
+            LabelCommand::Add {
+                issue_id,
+                label_name,
+            } => {
                 info!(command = "label add", %issue_id, %label_name);
                 commands::label::add(repo.unwrap(), &issue_id, &label_name)?;
             }
-            LabelCommand::Remove { issue_id, label_name } => {
+            LabelCommand::Remove {
+                issue_id,
+                label_name,
+            } => {
                 info!(command = "label remove", %issue_id, %label_name);
                 commands::label::remove(repo.unwrap(), &issue_id, &label_name)?;
             }
@@ -433,7 +455,10 @@ fn main() -> Result<()> {
             }
         },
         Commands::Doc(doc_cmd) => match doc_cmd {
-            DocCommand::Add { issue_id, file_path } => {
+            DocCommand::Add {
+                issue_id,
+                file_path,
+            } => {
                 info!(command = "doc add", %issue_id, %file_path);
                 commands::doc::add(repo.unwrap(), &issue_id, &file_path)?;
             }
@@ -450,8 +475,19 @@ fn main() -> Result<()> {
                 commands::doc::list(repo.unwrap(), &issue_id)?;
             }
         },
-        Commands::Delete { issue_ids, force, cascade, from_file } => {
-            info!(command = "delete", ids = issue_ids.len(), force, cascade, from_file = from_file.as_deref());
+        Commands::Delete {
+            issue_ids,
+            force,
+            cascade,
+            from_file,
+        } => {
+            info!(
+                command = "delete",
+                ids = issue_ids.len(),
+                force,
+                cascade,
+                from_file = from_file.as_deref()
+            );
             commands::delete::run(repo.unwrap(), issue_ids, force, cascade, from_file)?;
         }
         Commands::Issue(issue_cmd) => match issue_cmd {
@@ -531,7 +567,7 @@ fn main() -> Result<()> {
                 info!(command = "issue show", %id);
                 commands::issue::show::run(repo.unwrap(), &id)?;
             }
-        }
+        },
     }
 
     Ok(())

@@ -1,7 +1,9 @@
 use std::fs;
 
 use anyhow::Result;
-use beads_core::{create_issue_with_data, add_label_to_issue, add_document_to_issue, repo::BeadsRepo, BeadsError};
+use beads_core::{
+    add_document_to_issue, add_label_to_issue, create_issue_with_data, repo::BeadsRepo, Error,
+};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -20,21 +22,45 @@ fn default_priority() -> u32 {
     2
 }
 
-pub fn run(repo: BeadsRepo, title: &str, data: &str, depends_on: Vec<String>, labels: Option<String>, docs: Vec<String>) -> Result<()> {
-     if title.trim().is_empty() {
-         return Err(BeadsError::missing_field("title").into());
-     }
- 
-     let issue_data: IssueData = serde_json::from_str(data)
-         .map_err(BeadsError::invalid_json_for_create)?;
- 
-     let data_json: serde_json::Value = serde_json::from_str(data)
-         .map_err(BeadsError::invalid_json_for_create)?;
+pub fn run(
+    repo: BeadsRepo,
+    title: &str,
+    data: &str,
+    depends_on: Vec<String>,
+    labels: Option<String>,
+    docs: Vec<String>,
+) -> Result<()> {
+    if title.trim().is_empty() {
+        return Err(Error::missing_field("title", "").into());
+    }
 
-    let event = create_issue_with_data(&repo, title, &issue_data.kind, issue_data.priority, depends_on, Some(data_json))?;
-    
+    let issue_data: IssueData = serde_json::from_str(data).map_err(|e| Error::InvalidJson {
+        context: "create --data (legacy)".to_string(),
+        expected_format: r#"{"kind":"string","priority":0-3}"#.to_string(),
+        example: r#"beads create --title "Fix" --data '{"kind":"bug","priority":2}'"#.to_string(),
+        source: e,
+    })?;
+
+    let data_json: serde_json::Value =
+        serde_json::from_str(data).map_err(|e| Error::InvalidJson {
+            context: "create --data (legacy)".to_string(),
+            expected_format: r#"{"kind":"string","priority":0-3}"#.to_string(),
+            example: r#"beads create --title "Fix" --data '{"kind":"bug","priority":2}'"#
+                .to_string(),
+            source: e,
+        })?;
+
+    let event = create_issue_with_data(
+        &repo,
+        title,
+        &issue_data.kind,
+        issue_data.priority,
+        depends_on,
+        Some(data_json),
+    )?;
+
     println!("Created issue {}", event.id);
-    
+
     // Add labels if provided
     if let Some(label_str) = labels {
         let label_names: Vec<&str> = label_str.split(',').map(|s| s.trim()).collect();
@@ -47,7 +73,7 @@ pub fn run(repo: BeadsRepo, title: &str, data: &str, depends_on: Vec<String>, la
             }
         }
     }
-    
+
     // Add documents if provided
     for doc_spec in docs {
         let parts: Vec<&str> = doc_spec.splitn(2, ':').collect();
@@ -55,20 +81,18 @@ pub fn run(repo: BeadsRepo, title: &str, data: &str, depends_on: Vec<String>, la
             eprintln!("Invalid doc format '{}'. Expected 'name:path'", doc_spec);
             continue;
         }
-        
+
         let doc_name = parts[0];
         let file_path = parts[1];
-        
+
         match fs::read(file_path) {
-            Ok(content) => {
-                match add_document_to_issue(&repo, &event.id, doc_name, &content) {
-                    Ok(_) => println!("Attached '{}' to {}", doc_name, event.id),
-                    Err(e) => eprintln!("Failed to attach '{}': {}", doc_name, e),
-                }
-            }
+            Ok(content) => match add_document_to_issue(&repo, &event.id, doc_name, &content) {
+                Ok(_) => println!("Attached '{}' to {}", doc_name, event.id),
+                Err(e) => eprintln!("Failed to attach '{}': {}", doc_name, e),
+            },
             Err(e) => eprintln!("Failed to read file '{}': {}", file_path, e),
         }
     }
-    
+
     Ok(())
 }

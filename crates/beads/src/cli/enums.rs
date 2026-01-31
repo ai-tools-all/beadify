@@ -44,7 +44,12 @@ impl fmt::Display for Priority {
 
 impl clap::ValueEnum for Priority {
     fn value_variants<'a>() -> &'a [Self] {
-        &[Priority::Low, Priority::Medium, Priority::High, Priority::Urgent]
+        &[
+            Priority::Low,
+            Priority::Medium,
+            Priority::High,
+            Priority::Urgent,
+        ]
     }
 
     fn to_possible_value(&self) -> Option<clap::builder::PossibleValue> {
@@ -112,7 +117,14 @@ impl fmt::Display for Kind {
 
 impl clap::ValueEnum for Kind {
     fn value_variants<'a>() -> &'a [Self] {
-        &[Kind::Bug, Kind::Feature, Kind::Refactor, Kind::Docs, Kind::Chore, Kind::Task]
+        &[
+            Kind::Bug,
+            Kind::Feature,
+            Kind::Refactor,
+            Kind::Docs,
+            Kind::Chore,
+            Kind::Task,
+        ]
     }
 
     fn to_possible_value(&self) -> Option<clap::builder::PossibleValue> {
@@ -178,7 +190,12 @@ impl fmt::Display for Status {
 
 impl clap::ValueEnum for Status {
     fn value_variants<'a>() -> &'a [Self] {
-        &[Status::Open, Status::InProgress, Status::Review, Status::Closed]
+        &[
+            Status::Open,
+            Status::InProgress,
+            Status::Review,
+            Status::Closed,
+        ]
     }
 
     fn to_possible_value(&self) -> Option<clap::builder::PossibleValue> {

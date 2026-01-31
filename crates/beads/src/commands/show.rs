@@ -1,9 +1,8 @@
 use anyhow::{anyhow, Result};
-use beads_core::{get_open_dependencies, get_issue, repo::BeadsRepo};
+use beads_core::{get_issue, get_open_dependencies, repo::BeadsRepo};
 
 pub fn run(repo: BeadsRepo, id: &str) -> Result<()> {
-    let issue = get_issue(&repo, id)?
-        .ok_or_else(|| anyhow!("Issue '{}' not found", id))?;
+    let issue = get_issue(&repo, id)?.ok_or_else(|| anyhow!("Issue '{}' not found", id))?;
 
     println!("ID:       {}", issue.id);
     println!("Title:    {}", issue.title);
@@ -32,7 +31,10 @@ pub fn run(repo: BeadsRepo, id: &str) -> Result<()> {
         println!("\nBlocked By:");
         for dep_id in deps {
             if let Ok(Some(dep_issue)) = get_issue(&repo, &dep_id) {
-                println!("  ↳ {} [{}] p{} - {}", dep_id, dep_issue.status, dep_issue.priority, dep_issue.title);
+                println!(
+                    "  ↳ {} [{}] p{} - {}",
+                    dep_id, dep_issue.status, dep_issue.priority, dep_issue.title
+                );
             } else {
                 println!("  ↳ {} [not found]", dep_id);
             }

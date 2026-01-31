@@ -1,5 +1,7 @@
 use anyhow::Result;
-use beads_core::{get_all_issues, get_open_dependencies, get_issue, get_issue_labels, repo::BeadsRepo};
+use beads_core::{
+    get_all_issues, get_issue, get_issue_labels, get_open_dependencies, repo::BeadsRepo,
+};
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 
@@ -14,16 +16,28 @@ fn parse_labels(label_str: &str) -> Vec<String> {
     label_str.split(',').map(|s| s.trim().to_string()).collect()
 }
 
-fn issue_has_all_labels(repo: &BeadsRepo, issue_id: &str, required_labels: &[String]) -> Result<bool> {
+fn issue_has_all_labels(
+    repo: &BeadsRepo,
+    issue_id: &str,
+    required_labels: &[String],
+) -> Result<bool> {
     let issue_labels = get_issue_labels(repo, issue_id)?;
     let issue_label_names: Vec<String> = issue_labels.iter().map(|l| l.name.clone()).collect();
-    Ok(required_labels.iter().all(|label| issue_label_names.contains(label)))
+    Ok(required_labels
+        .iter()
+        .all(|label| issue_label_names.contains(label)))
 }
 
-fn issue_has_any_label(repo: &BeadsRepo, issue_id: &str, required_labels: &[String]) -> Result<bool> {
+fn issue_has_any_label(
+    repo: &BeadsRepo,
+    issue_id: &str,
+    required_labels: &[String],
+) -> Result<bool> {
     let issue_labels = get_issue_labels(repo, issue_id)?;
     let issue_label_names: Vec<String> = issue_labels.iter().map(|l| l.name.clone()).collect();
-    Ok(required_labels.iter().any(|label| issue_label_names.contains(label)))
+    Ok(required_labels
+        .iter()
+        .any(|label| issue_label_names.contains(label)))
 }
 
 struct TreeNode {
@@ -61,10 +75,7 @@ fn build_dependency_graph(
     Ok(graph)
 }
 
-fn find_roots(
-    graph: &HashMap<String, TreeNode>,
-    _repo: &BeadsRepo,
-) -> Result<Vec<String>> {
+fn find_roots(graph: &HashMap<String, TreeNode>, _repo: &BeadsRepo) -> Result<Vec<String>> {
     let mut is_dependency: HashSet<String> = HashSet::new();
 
     // Mark all issues that are dependencies of others
@@ -75,7 +86,8 @@ fn find_roots(
     }
 
     // Roots are issues that are not dependencies of any other issue
-    let mut roots: Vec<String> = graph.keys()
+    let mut roots: Vec<String> = graph
+        .keys()
         .filter(|id| !is_dependency.contains(*id))
         .cloned()
         .collect();
@@ -84,7 +96,10 @@ fn find_roots(
     roots.sort_by(|a, b| {
         let node_a = &graph[a];
         let node_b = &graph[b];
-        node_b.issue.priority.cmp(&node_a.issue.priority)
+        node_b
+            .issue
+            .priority
+            .cmp(&node_a.issue.priority)
             .then_with(|| a.cmp(b))
     });
 
@@ -145,7 +160,10 @@ fn print_tree_node(
         sorted_children.sort_by(|a, b| {
             let node_a = &graph[a];
             let node_b = &graph[b];
-            node_b.issue.priority.cmp(&node_a.issue.priority)
+            node_b
+                .issue
+                .priority
+                .cmp(&node_a.issue.priority)
                 .then_with(|| a.cmp(b))
         });
 
@@ -183,14 +201,14 @@ pub fn run(
     show_labels: bool,
 ) -> Result<()> {
     let mut issues = get_all_issues(&repo)?;
-    
+
     // Filter issues based on status
     if let Some(status) = status_filter {
         issues.retain(|issue| issue.status == status);
     } else if !show_all {
         issues.retain(|issue| issue.status == "open");
     }
-    
+
     // Filter issues by labels (AND - must have ALL labels)
     if let Some(label_str) = label_filter {
         let required_labels = parse_labels(&label_str);
@@ -198,7 +216,7 @@ pub fn run(
             issue_has_all_labels(&repo, &issue.id, &required_labels).unwrap_or(false)
         });
     }
-    
+
     // Filter issues by labels (OR - must have AT LEAST ONE label)
     if let Some(label_str) = label_any_filter {
         let required_labels = parse_labels(&label_str);
@@ -206,7 +224,7 @@ pub fn run(
             issue_has_any_label(&repo, &issue.id, &required_labels).unwrap_or(false)
         });
     }
-    
+
     if issues.is_empty() {
         if json_output {
             println!("{}", serde_json::to_string_pretty(&json!({"issues": []}))?);
@@ -215,30 +233,36 @@ pub fn run(
         }
         return Ok(());
     }
-    
+
     if json_output {
-        let issues_json: Vec<Value> = issues.iter().map(|issue| {
-            json!({
-                "id": issue.id,
-                "title": issue.title,
-                "kind": issue.kind,
-                "priority": issue.priority,
-                "status": issue.status,
-                "description": issue.description,
-                "design": issue.design,
-                "acceptance_criteria": issue.acceptance_criteria,
-                "notes": issue.notes,
-                "data": issue.data,
-                "labels": match get_issue_labels(&repo, &issue.id) {
-                    Ok(labels) => labels.iter().map(|l| l.name.clone()).collect::<Vec<_>>(),
-                    Err(_) => vec![],
-                }
+        let issues_json: Vec<Value> = issues
+            .iter()
+            .map(|issue| {
+                json!({
+                    "id": issue.id,
+                    "title": issue.title,
+                    "kind": issue.kind,
+                    "priority": issue.priority,
+                    "status": issue.status,
+                    "description": issue.description,
+                    "design": issue.design,
+                    "acceptance_criteria": issue.acceptance_criteria,
+                    "notes": issue.notes,
+                    "data": issue.data,
+                    "labels": match get_issue_labels(&repo, &issue.id) {
+                        Ok(labels) => labels.iter().map(|l| l.name.clone()).collect::<Vec<_>>(),
+                        Err(_) => vec![],
+                    }
+                })
             })
-        }).collect();
-        println!("{}", serde_json::to_string_pretty(&json!({"issues": issues_json}))?);
+            .collect();
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({"issues": issues_json}))?
+        );
         return Ok(());
     }
-    
+
     if !flat {
         // Tree view (default)
         // Build dependency graph
@@ -246,7 +270,10 @@ pub fn run(
         let roots = find_roots(&graph, &repo)?;
 
         if show_labels {
-            println!("{:<2} {:<8} {:<10} {:<4} {:<20} Title", " ", "ID", "Kind", "Prio", "Labels");
+            println!(
+                "{:<2} {:<8} {:<10} {:<4} {:<20} Title",
+                " ", "ID", "Kind", "Prio", "Labels"
+            );
             println!("{}", "─".repeat(100));
         } else {
             println!("{:<2} {:<8} {:<10} {:<4} Title", " ", "ID", "Kind", "Prio");
@@ -256,10 +283,13 @@ pub fn run(
         for root_id in roots {
             print_tree_node(&repo, &graph, &root_id, "", 0, true, show_labels)?;
         }
-        } else {
+    } else {
         // Flat list view (old behavior)
         if show_labels {
-            println!("{:<2} {:<8} {:<10} {:<4} {:<20} Title", " ", "ID", "Kind", "Prio", "Labels");
+            println!(
+                "{:<2} {:<8} {:<10} {:<4} {:<20} Title",
+                " ", "ID", "Kind", "Prio", "Labels"
+            );
             println!("{}", "─".repeat(100));
 
             for issue in issues {
@@ -269,7 +299,8 @@ pub fn run(
                 // Get labels for this issue
                 let labels_str = match get_issue_labels(&repo, &issue.id) {
                     Ok(labels) => {
-                        let label_names: Vec<String> = labels.iter().map(|l| l.name.clone()).collect();
+                        let label_names: Vec<String> =
+                            labels.iter().map(|l| l.name.clone()).collect();
                         if label_names.is_empty() {
                             "-".to_string()
                         } else {
@@ -294,12 +325,12 @@ pub fn run(
                                 dep_id, dep_issue.kind, dep_priority, dep_issue.title
                             );
                         }
-                        }
-                        }
-                        }
-                        } else {
-                        println!("{:<2} {:<8} {:<10} {:<4} Title", " ", "ID", "Kind", "Prio");
-                        println!("{}", "─".repeat(70));
+                    }
+                }
+            }
+        } else {
+            println!("{:<2} {:<8} {:<10} {:<4} Title", " ", "ID", "Kind", "Prio");
+            println!("{}", "─".repeat(70));
 
             for issue in issues {
                 let indicator = status_indicator(&issue.status);
@@ -320,11 +351,11 @@ pub fn run(
                                 dep_id, dep_issue.kind, dep_priority, dep_issue.title
                             );
                         }
-                        }
-                        }
-                        }
-                        }
-                        }
-                        
-                        Ok(())
-                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(())
+}

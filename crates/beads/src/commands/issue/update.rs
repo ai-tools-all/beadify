@@ -5,8 +5,7 @@
 
 use anyhow::Result;
 use beads_core::{
-    add_label_to_issue, remove_label_from_issue, repo::BeadsRepo, update_issue, BeadsError,
-    IssueUpdate,
+    add_label_to_issue, remove_label_from_issue, repo::BeadsRepo, update_issue, Error, IssueUpdate,
 };
 
 /// Run the issue update command
@@ -34,19 +33,32 @@ pub fn run(
     remove_label: Option<String>,
     data: Option<String>,
 ) -> Result<()> {
-     let mut update = IssueUpdate {
-         title,
-         kind,
-         description,
-         status,
-         priority,
-         ..Default::default()
-     };
+    let mut update = IssueUpdate {
+        title,
+        kind,
+        description,
+        status,
+        priority,
+        ..Default::default()
+    };
 
     // Parse JSON --data if provided
     if let Some(data_str) = data {
-        let json = serde_json::from_str::<serde_json::Value>(&data_str)
-            .map_err(BeadsError::invalid_json_for_update)?;
+        let json = serde_json::from_str::<serde_json::Value>(&data_str).map_err(|e| {
+            Error::InvalidJson {
+                context: "issue update --data".to_string(),
+                expected_format: r#"{
+  "title": "string",
+  "description": "string",
+  "priority": 0-3,
+  "status": "open|in_progress|review|closed",
+  "kind": "bug|feature|refactor|docs|chore|task"
+}"#
+                .to_string(),
+                example: r#"beads issue update bd-042 --data '{"status":"closed"}'"#.to_string(),
+                source: e,
+            }
+        })?;
 
         // Apply JSON values only if not already set by flags
         if update.description.is_none() {
@@ -81,7 +93,7 @@ pub fn run(
     let has_label_operations = add_label.is_some() || remove_label.is_some();
 
     if !has_field_updates && !has_label_operations {
-        return Err(BeadsError::empty_update(id).into());
+        return Err(Error::empty_issue_update(id).into());
     }
 
     // Apply field updates if any
