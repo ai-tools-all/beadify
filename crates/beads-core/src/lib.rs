@@ -13,21 +13,21 @@ use db::{add_dependency, add_issue_label, apply_issue_update, create_schema, del
 use rusqlite::{Connection, OptionalExtension};
 
 fn validate_label_name(name: &str) -> Result<()> {
-    if name.trim().is_empty() {
-        return Err(BeadsError::Custom("Label name cannot be empty".to_string()));
-    }
-    if name.len() > 50 {
-        return Err(BeadsError::Custom(
-            "Label name cannot exceed 50 characters".to_string(),
-        ));
-    }
-    if !name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
-        return Err(BeadsError::Custom(
-            "Label name can only contain alphanumeric characters, hyphens, and underscores".to_string(),
-        ));
-    }
-    Ok(())
-}
+     if name.trim().is_empty() {
+         return Err(BeadsError::custom("Label name cannot be empty"));
+     }
+     if name.len() > 50 {
+         return Err(BeadsError::custom(
+             "Label name cannot exceed 50 characters",
+         ));
+     }
+     if !name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+         return Err(BeadsError::custom(
+             "Label name can only contain alphanumeric characters, hyphens, and underscores",
+         ));
+     }
+     Ok(())
+ }
 
 pub fn create_issue(
     repo: &BeadsRepo,
@@ -100,18 +100,18 @@ pub fn get_open_dependencies(repo: &BeadsRepo, issue_id: &str) -> Result<Vec<Str
 }
 
 pub fn add_issue_dependency(repo: &BeadsRepo, issue_id: &str, depends_on_id: &str) -> Result<()> {
-    // Validate both issues exist
-    if get_issue(repo, issue_id)?.is_none() {
-        return Err(BeadsError::Custom(format!("Issue '{}' not found", issue_id)));
-    }
-    if get_issue(repo, depends_on_id)?.is_none() {
-        return Err(BeadsError::Custom(format!("Issue '{}' not found", depends_on_id)));
-    }
-    
-    // Prevent self-dependency
-    if issue_id == depends_on_id {
-        return Err(BeadsError::Custom("An issue cannot depend on itself".to_string()));
-    }
+     // Validate both issues exist
+     if get_issue(repo, issue_id)?.is_none() {
+         return Err(BeadsError::custom(format!("Issue '{}' not found", issue_id)));
+     }
+     if get_issue(repo, depends_on_id)?.is_none() {
+         return Err(BeadsError::custom(format!("Issue '{}' not found", depends_on_id)));
+     }
+     
+     // Prevent self-dependency
+     if issue_id == depends_on_id {
+         return Err(BeadsError::custom("An issue cannot depend on itself"));
+     }
     
     let mut conn = repo.open_db()?;
     create_schema(&conn)?;
@@ -135,9 +135,9 @@ pub fn remove_issue_dependency(repo: &BeadsRepo, issue_id: &str, depends_on_id: 
 }
 
 pub fn update_issue(repo: &BeadsRepo, id: &str, update: IssueUpdate) -> Result<Event> {
-    if update.is_empty() {
-        return Err(BeadsError::EmptyUpdate);
-    }
+     if update.is_empty() {
+         return Err(BeadsError::empty_update(id));
+     }
 
     let mut conn = repo.open_db()?;
     create_schema(&conn)?;
@@ -184,7 +184,7 @@ pub fn add_label_to_issue(repo: &BeadsRepo, issue_id: &str, label_name: &str) ->
     
     // Validate issue exists
     if get_issue(repo, issue_id)?.is_none() {
-        return Err(BeadsError::Custom(format!("Issue '{}' not found", issue_id)));
+        return Err(BeadsError::custom(format!("Issue '{}' not found", issue_id)));
     }
 
     let mut conn = repo.open_db()?;
@@ -242,7 +242,7 @@ pub fn remove_label_from_issue(repo: &BeadsRepo, issue_id: &str, label_name: &st
             "SELECT id FROM labels WHERE name = ?1"
         )?;
         stmt.query_row(rusqlite::params![label_name], |row| row.get(0))
-            .map_err(|_| BeadsError::Custom(format!("Label '{}' not found", label_name)))?
+            .map_err(|_| BeadsError::custom(format!("Label '{}' not found", label_name)))?
     };
     
     let tx = conn.transaction()?;
@@ -274,7 +274,7 @@ pub fn get_issues_by_label(repo: &BeadsRepo, label_name: &str) -> Result<Vec<Str
             "SELECT id FROM labels WHERE name = ?1"
         )?;
         stmt.query_row(rusqlite::params![label_name], |row| row.get(0))
-            .map_err(|_| BeadsError::Custom(format!("Label '{}' not found", label_name)))?
+            .map_err(|_| BeadsError::custom(format!("Label '{}' not found", label_name)))?
     };
     
     db_get_issues_by_label(&conn, &label_id)
@@ -293,20 +293,20 @@ pub fn add_document_to_issue(
 
     // Get current issue to retrieve existing data
     let issue = get_issue(repo, issue_id)?.ok_or_else(|| {
-        BeadsError::Custom(format!("Issue '{}' not found", issue_id))
+        BeadsError::custom(format!("Issue '{}' not found", issue_id))
     })?;
 
     // Parse or create documents map
     let mut data = issue.data.unwrap_or_else(|| serde_json::json!({}));
     let documents = data
         .as_object_mut()
-        .ok_or_else(|| BeadsError::Custom("Issue data is not a JSON object".to_string()))?
+        .ok_or_else(|| BeadsError::custom("Issue data is not a JSON object"))?
         .entry("documents")
         .or_insert_with(|| serde_json::json!({}));
 
     let documents_map = documents
         .as_object_mut()
-        .ok_or_else(|| BeadsError::Custom("Documents field is not a JSON object".to_string()))?;
+        .ok_or_else(|| BeadsError::custom("Documents field is not a JSON object"))?;
 
     // Add or update document hash
     documents_map.insert(doc_name.to_string(), serde_json::json!(hash));
@@ -328,7 +328,7 @@ pub fn get_issue_documents(repo: &BeadsRepo, issue_id: &str) -> Result<std::coll
     use std::collections::HashMap;
 
     let issue = get_issue(repo, issue_id)?.ok_or_else(|| {
-        BeadsError::Custom(format!("Issue '{}' not found", issue_id))
+        BeadsError::custom(format!("Issue '{}' not found", issue_id))
     })?;
 
     let mut documents = HashMap::new();
@@ -355,7 +355,7 @@ pub fn delete_issue(repo: &BeadsRepo, issue_id: &str) -> Result<DeleteResult> {
 
     // Check if issue exists and is not already deleted
     let issue = get_issue(repo, issue_id)?.ok_or_else(|| 
-        BeadsError::Custom(format!("Issue '{}' not found or already deleted", issue_id))
+        BeadsError::custom(format!("Issue '{}' not found or already deleted", issue_id))
     )?;
 
     // Get dependents (issues that depend on this)
@@ -387,9 +387,9 @@ pub fn delete_issue(repo: &BeadsRepo, issue_id: &str) -> Result<DeleteResult> {
 
 /// Get issues that would be affected by deletion (for preview)
 pub fn get_delete_impact(repo: &BeadsRepo, issue_id: &str, cascade: bool) -> Result<DeleteImpact> {
-    let issue = get_issue(repo, issue_id)?.ok_or_else(|| 
-        BeadsError::Custom(format!("Issue '{}' not found or already deleted", issue_id))
-    )?;
+     let issue = get_issue(repo, issue_id)?.ok_or_else(|| 
+         BeadsError::custom(format!("Issue '{}' not found or already deleted", issue_id))
+     )?;
 
     let dependents = get_dependents(repo, issue_id)?;
     let text_refs = find_text_references(repo, issue_id)?;
@@ -565,8 +565,8 @@ pub struct BatchDeleteResult {
 }
 
 fn next_issue_id(conn: &mut Connection) -> Result<String> {
-    let tx = conn.transaction()?;
-    let prefix = db::get_meta(&tx, "id_prefix")?.ok_or(BeadsError::MissingConfig("id_prefix"))?;
+     let tx = conn.transaction()?;
+     let prefix = db::get_meta(&tx, "id_prefix")?.ok_or_else(|| BeadsError::missing_config("id_prefix"))?;
     let last_serial = db::get_meta(&tx, "last_issue_serial")?
         .and_then(|value| value.parse::<u32>().ok())
         .unwrap_or(0);

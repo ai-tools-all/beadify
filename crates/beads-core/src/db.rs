@@ -230,7 +230,7 @@ pub fn remove_dependency(tx: &Transaction<'_>, issue_id: &str, depends_on_id: &s
         params![issue_id, depends_on_id],
     )?;
     if rows == 0 {
-        return Err(crate::error::BeadsError::Custom(format!(
+        return Err(crate::error::BeadsError::custom(format!(
             "Dependency not found: {} does not depend on {}",
             issue_id, depends_on_id
         )));
@@ -395,15 +395,15 @@ pub fn get_all_labels(conn: &Connection) -> Result<Vec<Label>> {
 }
 
 pub fn delete_label(tx: &Transaction<'_>, id: &str) -> Result<()> {
-    let rows = tx.execute("DELETE FROM labels WHERE id = ?1", params![id])?;
-    if rows == 0 {
-        return Err(crate::error::BeadsError::Custom(format!(
-            "Label not found: {}",
-            id
-        )));
-    }
-    Ok(())
-}
+     let rows = tx.execute("DELETE FROM labels WHERE id = ?1", params![id])?;
+     if rows == 0 {
+         return Err(crate::error::BeadsError::custom(format!(
+             "Label not found: {}",
+             id
+         )));
+     }
+     Ok(())
+ }
 
 pub fn add_issue_label(tx: &Transaction<'_>, issue_id: &str, label_id: &str) -> Result<()> {
     tx.execute(
@@ -414,18 +414,18 @@ pub fn add_issue_label(tx: &Transaction<'_>, issue_id: &str, label_id: &str) -> 
 }
 
 pub fn remove_issue_label(tx: &Transaction<'_>, issue_id: &str, label_id: &str) -> Result<()> {
-    let rows = tx.execute(
-        "DELETE FROM issue_labels WHERE issue_id = ?1 AND label_id = ?2",
-        params![issue_id, label_id],
-    )?;
-    if rows == 0 {
-        return Err(crate::error::BeadsError::Custom(format!(
-            "Issue label not found: {} on {}",
-            label_id, issue_id
-        )));
-    }
-    Ok(())
-}
+     let rows = tx.execute(
+         "DELETE FROM issue_labels WHERE issue_id = ?1 AND label_id = ?2",
+         params![issue_id, label_id],
+     )?;
+     if rows == 0 {
+         return Err(crate::error::BeadsError::custom(format!(
+             "Issue label not found: {} on {}",
+             label_id, issue_id
+         )));
+     }
+     Ok(())
+ }
 
 pub fn get_issue_labels(conn: &Connection, issue_id: &str) -> Result<Vec<Label>> {
     let mut stmt = conn.prepare(
