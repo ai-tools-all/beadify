@@ -92,6 +92,57 @@ pub enum Error {
         common_examples: String,
         all_fields: String,
     },
+
+    /// Issue not found
+    #[snafu(display(
+        "issue not found: {issue_id}\n\n\
+         List all issues:\n  \
+         beads issue list\n\n\
+         Search issues:\n  \
+         beads search <query>"
+    ))]
+    IssueNotFound {
+        issue_id: String,
+    },
+
+    /// Invalid issue ID format
+    #[snafu(display(
+        "invalid issue ID format: '{provided}'\n\n\
+         Expected format: {prefix}-<number>\n\n\
+         Examples:\n  \
+         bd-001\n  \
+         bd-042\n  \
+         {prefix}-123"
+    ))]
+    InvalidIssueId {
+        provided: String,
+        prefix: String,
+    },
+
+    /// Circular dependency detected
+    #[snafu(display(
+        "circular dependency detected\n\n\
+         Cannot add dependency: {from} → {to}\n\
+         This would create a cycle: {cycle_path}\n\n\
+         Issue dependencies must form a directed acyclic graph (DAG)."
+    ))]
+    CircularDependency {
+        from: String,
+        to: String,
+        cycle_path: String,
+    },
+
+    /// Missing required field
+    #[snafu(display(
+        "missing required field: {field}\n\n\
+         This field cannot be empty.\n\n\
+         Example:\n  \
+         beads issue create --title \"Fix login bug\" {example_usage}"
+    ))]
+    MissingRequiredField {
+        field: String,
+        example_usage: String,
+    },
 }
 
 impl Error {
@@ -148,6 +199,37 @@ impl Error {
             entity_id,
             common_examples,
             all_fields,
+        }
+    }
+
+    /// Create InvalidIssueId with repository prefix
+    pub fn invalid_issue_id(provided: impl Into<String>, prefix: impl Into<String>) -> Self {
+        Error::InvalidIssueId {
+            provided: provided.into(),
+            prefix: prefix.into(),
+        }
+    }
+
+    /// Create CircularDependency with cycle path
+    pub fn circular_dependency(
+        from: impl Into<String>,
+        to: impl Into<String>,
+        cycle: &[String],
+    ) -> Self {
+        let cycle_path = cycle.join(" → ");
+
+        Error::CircularDependency {
+            from: from.into(),
+            to: to.into(),
+            cycle_path,
+        }
+    }
+
+    /// Create MissingRequiredField with example
+    pub fn missing_field(field: impl Into<String>, example_usage: impl Into<String>) -> Self {
+        Error::MissingRequiredField {
+            field: field.into(),
+            example_usage: example_usage.into(),
         }
     }
 }
@@ -232,5 +314,53 @@ mod tests {
         assert!(msg.contains("--priority"));
         assert!(msg.contains("All available options:"));
         assert!(msg.contains("Example:"));
+    }
+
+    #[test]
+    fn test_issue_not_found() {
+        let err = Error::IssueNotFound {
+            issue_id: "bd-999".to_string(),
+        };
+        let msg = err.to_string();
+
+        assert!(msg.contains("issue not found: bd-999"));
+        assert!(msg.contains("beads issue list"));
+        assert!(msg.contains("beads search"));
+    }
+
+    #[test]
+    fn test_invalid_issue_id() {
+        let err = Error::invalid_issue_id("xyz-123", "bd");
+        let msg = err.to_string();
+
+        assert!(msg.contains("invalid issue ID format: 'xyz-123'"));
+        assert!(msg.contains("Expected format: bd-<number>"));
+        assert!(msg.contains("bd-001"));
+    }
+
+    #[test]
+    fn test_circular_dependency() {
+        let cycle = vec![
+            "bd-001".to_string(),
+            "bd-002".to_string(),
+            "bd-003".to_string(),
+            "bd-001".to_string(),
+        ];
+        let err = Error::circular_dependency("bd-003", "bd-001", &cycle);
+        let msg = err.to_string();
+
+        assert!(msg.contains("circular dependency detected"));
+        assert!(msg.contains("bd-001 → bd-002 → bd-003 → bd-001"));
+        assert!(msg.contains("directed acyclic graph"));
+    }
+
+    #[test]
+    fn test_missing_required_field() {
+        let err = Error::missing_field("title", "--kind bug");
+        let msg = err.to_string();
+
+        assert!(msg.contains("missing required field: title"));
+        assert!(msg.contains("cannot be empty"));
+        assert!(msg.contains("--kind bug"));
     }
 }
