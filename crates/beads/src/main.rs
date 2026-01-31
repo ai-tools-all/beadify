@@ -99,15 +99,15 @@ enum Commands {
     Search {
         /// Search query string
         query: String,
-        /// Filter by issue kind (feature, task, bug, etc.)
-        #[arg(long)]
-        kind: Option<String>,
-        /// Filter by status (open, in_progress, closed, etc.)
-        #[arg(long)]
-        status: Option<String>,
-        /// Filter by priority level
-        #[arg(long)]
-        priority: Option<u32>,
+        /// Filter by issue kind: bug, feature, refactor, docs, chore, task
+        #[arg(long, value_enum)]
+        kind: Option<Kind>,
+        /// Filter by status: open, in-progress, review, closed
+        #[arg(long, value_enum)]
+        status: Option<Status>,
+        /// Filter by priority: low, medium, high, urgent (or 0-3)
+        #[arg(long, value_enum)]
+        priority: Option<Priority>,
         /// Search only in titles, not in descriptions
         #[arg(long)]
         title_only: bool,
@@ -380,8 +380,15 @@ fn main() -> Result<()> {
             priority,
             title_only,
         } => {
-            info!(command = "search", %query, kind = kind.as_deref(), status = status.as_deref(), priority, title_only);
-            commands::search::run(repo.unwrap(), &query, kind, status, priority, title_only)?;
+            info!(command = "search", %query, kind = ?kind, status = ?status, priority = ?priority, title_only);
+            commands::search::run(
+                repo.unwrap(),
+                &query,
+                kind.map(|k| k.as_str().to_string()),
+                status.map(|s| s.as_str().to_string()),
+                priority.map(|p| p.as_u32()),
+                title_only,
+            )?;
         }
         Commands::Ready => {
             info!(command = "ready");
