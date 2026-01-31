@@ -4,6 +4,7 @@ pub mod error;
 pub mod log;
 pub mod model;
 pub mod repo;
+pub mod utils;
 
 pub use error::{BeadsError, Result};
 pub use model::{Event, Issue, IssueUpdate, Label, OpKind};
