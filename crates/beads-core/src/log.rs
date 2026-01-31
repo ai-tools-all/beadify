@@ -203,6 +203,7 @@ fn apply_event(tx: &Transaction<'_>, event: &Event) -> Result<()> {
                 kind: payload.kind,
                 priority: payload.priority,
                 status,
+                created_at: event.ts.clone(),
                 description: None,
                 design: None,
                 acceptance_criteria: None,

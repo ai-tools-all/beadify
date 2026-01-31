@@ -72,12 +72,14 @@ pub fn create_issue_with_data(
     create_schema(&conn)?;
 
     let issue_id = next_issue_id(&mut conn)?;
+    let created_at = chrono::Utc::now().to_rfc3339();
     let issue = Issue {
         id: issue_id.clone(),
         title: title.to_string(),
         kind: kind.to_string(),
         priority,
         status: "open".to_string(),
+        created_at,
         description: None,
         design: None,
         acceptance_criteria: None,

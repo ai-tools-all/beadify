@@ -14,6 +14,7 @@ pub fn create_schema(conn: &Connection) -> Result<()> {
             kind TEXT NOT NULL,
             priority INTEGER NOT NULL,
             status TEXT NOT NULL DEFAULT 'open',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             description TEXT,
             design TEXT,
             acceptance_criteria TEXT,
@@ -72,6 +73,12 @@ pub fn create_schema(conn: &Connection) -> Result<()> {
     if !columns.contains(&"notes".to_string()) {
         conn.execute("ALTER TABLE issues ADD COLUMN notes TEXT", [])?;
     }
+    if !columns.contains(&"created_at".to_string()) {
+        conn.execute(
+            "ALTER TABLE issues ADD COLUMN created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP",
+            [],
+        )?;
+    }
 
     Ok(())
 }
@@ -80,8 +87,8 @@ pub fn upsert_issue(tx: &Transaction<'_>, issue: &Issue) -> Result<()> {
     let data = issue.data.as_ref().map(|v| v.to_string());
     tx.execute(
         r#"
-        INSERT INTO issues (id, title, kind, priority, status, description, design, acceptance_criteria, notes, data)
-        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+        INSERT INTO issues (id, title, kind, priority, status, created_at, description, design, acceptance_criteria, notes, data)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
         ON CONFLICT(id) DO UPDATE SET
             title = excluded.title,
             kind = excluded.kind,
@@ -99,6 +106,7 @@ pub fn upsert_issue(tx: &Transaction<'_>, issue: &Issue) -> Result<()> {
             issue.kind,
             issue.priority,
             issue.status,
+            issue.created_at,
             issue.description,
             issue.design,
             issue.acceptance_criteria,
@@ -111,11 +119,11 @@ pub fn upsert_issue(tx: &Transaction<'_>, issue: &Issue) -> Result<()> {
 
 pub fn get_issue(conn: &Connection, id: &str) -> Result<Option<Issue>> {
     let mut stmt = conn.prepare(
-        "SELECT id, title, kind, priority, status, description, design, acceptance_criteria, notes, data FROM issues WHERE id = ?1",
+        "SELECT id, title, kind, priority, status, created_at, description, design, acceptance_criteria, notes, data FROM issues WHERE id = ?1",
     )?;
     let issue = stmt
         .query_row(params![id], |row| {
-            let data_str: Option<String> = row.get(9)?;
+            let data_str: Option<String> = row.get(10)?;
             let data = data_str.and_then(|s| serde_json::from_str(&s).ok());
             Ok(Issue {
                 id: row.get(0)?,
@@ -123,10 +131,11 @@ pub fn get_issue(conn: &Connection, id: &str) -> Result<Option<Issue>> {
                 kind: row.get(2)?,
                 priority: row.get::<_, i64>(3)? as u32,
                 status: row.get(4)?,
-                description: row.get(5)?,
-                design: row.get(6)?,
-                acceptance_criteria: row.get(7)?,
-                notes: row.get(8)?,
+                created_at: row.get(5)?,
+                description: row.get(6)?,
+                design: row.get(7)?,
+                acceptance_criteria: row.get(8)?,
+                notes: row.get(9)?,
                 data,
             })
         })
@@ -136,10 +145,10 @@ pub fn get_issue(conn: &Connection, id: &str) -> Result<Option<Issue>> {
 
 pub fn get_all_issues(conn: &Connection) -> Result<Vec<Issue>> {
     let mut stmt =
-        conn.prepare("SELECT id, title, kind, priority, status, description, design, acceptance_criteria, notes, data FROM issues ORDER BY id ASC")?;
+        conn.prepare("SELECT id, title, kind, priority, status, created_at, description, design, acceptance_criteria, notes, data FROM issues ORDER BY id ASC")?;
     let issues = stmt
         .query_map([], |row| {
-            let data_str: Option<String> = row.get(9)?;
+            let data_str: Option<String> = row.get(10)?;
             let data = data_str.and_then(|s| serde_json::from_str(&s).ok());
             Ok(Issue {
                 id: row.get(0)?,
@@ -147,10 +156,11 @@ pub fn get_all_issues(conn: &Connection) -> Result<Vec<Issue>> {
                 kind: row.get(2)?,
                 priority: row.get::<_, i64>(3)? as u32,
                 status: row.get(4)?,
-                description: row.get(5)?,
-                design: row.get(6)?,
-                acceptance_criteria: row.get(7)?,
-                notes: row.get(8)?,
+                created_at: row.get(5)?,
+                description: row.get(6)?,
+                design: row.get(7)?,
+                acceptance_criteria: row.get(8)?,
+                notes: row.get(9)?,
                 data,
             })
         })?
@@ -539,6 +549,7 @@ mod tests {
             kind: "task".to_string(),
             priority: 1,
             status: "open".to_string(),
+            created_at: "2026-01-31T00:00:00Z".to_string(),
             description: None,
             design: None,
             acceptance_criteria: None,
@@ -575,6 +586,7 @@ mod tests {
             kind: "task".to_string(),
             priority: 1,
             status: "open".to_string(),
+            created_at: "2026-01-31T00:00:00Z".to_string(),
             description: None,
             design: None,
             acceptance_criteria: None,
@@ -630,6 +642,7 @@ mod tests {
             kind: "task".to_string(),
             priority: 1,
             status: "open".to_string(),
+            created_at: "2026-01-31T00:00:00Z".to_string(),
             description: None,
             design: None,
             acceptance_criteria: None,
@@ -716,6 +729,7 @@ mod tests {
                 kind: "task".to_string(),
                 priority: 1,
                 status: "open".to_string(),
+                created_at: "2026-01-31T00:00:00Z".to_string(),
                 description: None,
                 design: None,
                 acceptance_criteria: None,
@@ -758,6 +772,7 @@ mod tests {
             kind: "task".to_string(),
             priority: 1,
             status: "open".to_string(),
+            created_at: "2026-01-31T00:00:00Z".to_string(),
             description: None,
             design: None,
             acceptance_criteria: None,
@@ -794,6 +809,7 @@ mod tests {
             kind: "task".to_string(),
             priority: 1,
             status: "open".to_string(),
+            created_at: "2026-01-31T00:00:00Z".to_string(),
             description: None,
             design: None,
             acceptance_criteria: None,
