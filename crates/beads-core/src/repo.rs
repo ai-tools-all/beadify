@@ -178,9 +178,7 @@ mod tests {
         let gitignore_path = temp.path().join(".gitignore");
         assert!(gitignore_path.exists());
         let contents = fs::read_to_string(gitignore_path)?;
-        assert!(contents
-            .lines()
-            .any(|line| line.trim() == ".beads/docs/"));
+        assert!(contents.lines().any(|line| line.trim() == ".beads/docs/"));
         Ok(())
     }
 

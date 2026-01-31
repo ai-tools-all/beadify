@@ -13,7 +13,13 @@ pub fn find_best_match<'a>(
         .iter()
         .map(|&option| (option, jaro_winkler(input, option)))
         .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
-        .and_then(|(option, score)| if score >= threshold { Some(option) } else { None })
+        .and_then(|(option, score)| {
+            if score >= threshold {
+                Some(option)
+            } else {
+                None
+            }
+        })
 }
 
 #[cfg(test)]
@@ -35,7 +41,10 @@ mod tests {
     #[test]
     fn test_typo_match() {
         let options = &["open", "in_progress", "review", "closed"];
-        assert_eq!(find_best_match("in_progres", options, 0.8), Some("in_progress"));
+        assert_eq!(
+            find_best_match("in_progres", options, 0.8),
+            Some("in_progress")
+        );
     }
 
     #[test]

@@ -48,18 +48,21 @@ fn calculate_hash(content: &[u8]) -> String {
 }
 
 fn validate_hash(hash: &str) -> Result<()> {
-     if hash.len() != 64 {
-         return Err(Error::InvalidHash {
-             hash: format!("Hash must be 64 characters, got {}", hash.len()),
-         });
-     }
-     if !hash.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()) {
-         return Err(Error::InvalidHash {
-             hash: "Hash must contain only lowercase hexadecimal characters".to_string(),
-         });
-     }
-     Ok(())
- }
+    if hash.len() != 64 {
+        return Err(Error::InvalidHash {
+            hash: format!("Hash must be 64 characters, got {}", hash.len()),
+        });
+    }
+    if !hash
+        .chars()
+        .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+    {
+        return Err(Error::InvalidHash {
+            hash: "Hash must contain only lowercase hexadecimal characters".to_string(),
+        });
+    }
+    Ok(())
+}
 
 #[cfg(test)]
 mod tests {
@@ -103,9 +106,9 @@ mod tests {
         let repo = repo::init_repo(temp.path(), "test")?;
 
         let fake_hash = "0000000000000000000000000000000000000000000000000000000000000000";
-         let result = read_blob(&repo, fake_hash);
-        
-         assert!(matches!(result, Err(Error::BlobNotFound { .. })));
+        let result = read_blob(&repo, fake_hash);
+
+        assert!(matches!(result, Err(Error::BlobNotFound { .. })));
 
         Ok(())
     }
@@ -115,16 +118,18 @@ mod tests {
         let result = validate_hash("tooshort");
         assert!(matches!(result, Err(Error::InvalidHash { .. })));
     }
-    
+
     #[test]
     fn test_validate_hash_invalid_chars() {
-        let result = validate_hash("ZZZZ000000000000000000000000000000000000000000000000000000000000");
+        let result =
+            validate_hash("ZZZZ000000000000000000000000000000000000000000000000000000000000");
         assert!(matches!(result, Err(Error::InvalidHash { .. })));
     }
-    
+
     #[test]
     fn test_validate_hash_uppercase() {
-        let result = validate_hash("AAAA000000000000000000000000000000000000000000000000000000000000");
+        let result =
+            validate_hash("AAAA000000000000000000000000000000000000000000000000000000000000");
         assert!(matches!(result, Err(Error::InvalidHash { .. })));
     }
 

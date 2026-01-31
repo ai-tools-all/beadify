@@ -1,22 +1,36 @@
-use std::fmt::{self, Display};
 use std::error::Error;
+use std::fmt::{self, Display};
 
 #[derive(Debug)]
 pub enum BeadsError {
     // === System errors ===
-    Io { source: std::io::Error },
-    Db { source: rusqlite::Error },
-    Serde { source: serde_json::Error },
-    UlidDecode { source: ulid::DecodeError },
+    Io {
+        source: std::io::Error,
+    },
+    Db {
+        source: rusqlite::Error,
+    },
+    Serde {
+        source: serde_json::Error,
+    },
+    UlidDecode {
+        source: ulid::DecodeError,
+    },
 
     // === Repository errors ===
     AlreadyInitialized,
     RepoNotFound,
-    MissingConfig { key: &'static str },
+    MissingConfig {
+        key: &'static str,
+    },
 
     // === Resource errors ===
-    BlobNotFound { hash: String },
-    InvalidHash { hash: String },
+    BlobNotFound {
+        hash: String,
+    },
+    InvalidHash {
+        hash: String,
+    },
 
     // === Structured CLI errors ===
     EmptyUpdate {
@@ -30,11 +44,17 @@ pub enum BeadsError {
         fields: String,
     },
 
-    MissingRequiredField { field: &'static str },
-    InvalidDocFormat { provided: String },
+    MissingRequiredField {
+        field: &'static str,
+    },
+    InvalidDocFormat {
+        provided: String,
+    },
 
     // === Fallback ===
-    Custom { message: String },
+    Custom {
+        message: String,
+    },
 }
 
 impl Error for BeadsError {}
@@ -55,15 +75,17 @@ impl BeadsError {
         ]
         .join("\n");
 
-        Self::EmptyUpdate {
-            entity_id,
-            fields,
-        }
+        Self::EmptyUpdate { entity_id, fields }
     }
 
     /// Create InvalidJsonData error for create command
     pub fn invalid_json_for_create(source: serde_json::Error) -> Self {
-        let fields = ["  \"description\": <value>,", "  \"priority\": <value>,", "  \"kind\": <value>,"].join("\n");
+        let fields = [
+            "  \"description\": <value>,",
+            "  \"priority\": <value>,",
+            "  \"kind\": <value>,",
+        ]
+        .join("\n");
 
         Self::InvalidJsonData {
             source,
@@ -153,10 +175,7 @@ impl Display for BeadsError {
             Self::MissingConfig { key } => write!(f, "missing repository configuration: {}", key),
             Self::BlobNotFound { hash } => write!(f, "blob not found: {}", hash),
             Self::InvalidHash { hash } => write!(f, "invalid hash: {}", hash),
-            Self::EmptyUpdate {
-                entity_id,
-                fields,
-            } => {
+            Self::EmptyUpdate { entity_id, fields } => {
                 write!(
                     f,
                     "update requires at least one field\n\nNo updates specified for {}.\n\nAvailable options:\n{}\n\nExample: beads issue update {} --status closed",

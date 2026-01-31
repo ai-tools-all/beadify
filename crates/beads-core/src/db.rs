@@ -190,7 +190,7 @@ pub fn add_dependency(tx: &Transaction<'_>, issue_id: &str, depends_on_id: &str)
 
 pub fn get_dependencies(conn: &Connection, issue_id: &str) -> Result<Vec<String>> {
     let mut stmt = conn.prepare(
-        "SELECT depends_on_id FROM dependencies WHERE issue_id = ?1 ORDER BY depends_on_id"
+        "SELECT depends_on_id FROM dependencies WHERE issue_id = ?1 ORDER BY depends_on_id",
     )?;
     let deps = stmt
         .query_map(params![issue_id], |row| row.get(0))?
@@ -206,7 +206,7 @@ pub fn get_open_dependencies(conn: &Connection, issue_id: &str) -> Result<Vec<St
         JOIN issues i ON d.depends_on_id = i.id
         WHERE d.issue_id = ?1 AND i.status != 'closed'
         ORDER BY d.depends_on_id
-        "#
+        "#,
     )?;
     let deps = stmt
         .query_map(params![issue_id], |row| row.get(0))?
@@ -215,9 +215,8 @@ pub fn get_open_dependencies(conn: &Connection, issue_id: &str) -> Result<Vec<St
 }
 
 pub fn get_dependents(conn: &Connection, issue_id: &str) -> Result<Vec<String>> {
-    let mut stmt = conn.prepare(
-        "SELECT issue_id FROM dependencies WHERE depends_on_id = ?1 ORDER BY issue_id"
-    )?;
+    let mut stmt = conn
+        .prepare("SELECT issue_id FROM dependencies WHERE depends_on_id = ?1 ORDER BY issue_id")?;
     let dependents = stmt
         .query_map(params![issue_id], |row| row.get(0))?
         .collect::<std::result::Result<Vec<_>, _>>()?;
@@ -261,23 +260,23 @@ pub fn delete_issue(tx: &Transaction<'_>, issue_id: &str) -> Result<()> {
 pub fn update_text_references(tx: &Transaction<'_>, deleted_id: &str) -> Result<usize> {
     let replacement = format!("[deleted:{}]", deleted_id);
     let search_pattern = format!("%{}%", deleted_id);
-    
+
     let mut total_updated = 0;
-    
+
     // Update title field
     let updated = tx.execute(
         "UPDATE issues SET title = REPLACE(title, ?1, ?2) WHERE title LIKE ?3",
         params![deleted_id, &replacement, &search_pattern],
     )?;
     total_updated += updated;
-    
+
     // Update data field (JSON text)
     let updated = tx.execute(
         "UPDATE issues SET data = REPLACE(data, ?1, ?2) WHERE data IS NOT NULL AND data LIKE ?3",
         params![deleted_id, &replacement, &search_pattern],
     )?;
     total_updated += updated;
-    
+
     Ok(total_updated)
 }
 
@@ -292,7 +291,7 @@ pub fn is_issue_deleted(conn: &Connection, issue_id: &str) -> Result<bool> {
         )
         .optional()?
         .unwrap_or(false);
-    
+
     Ok(!exists)
 }
 
@@ -364,9 +363,7 @@ pub fn create_label(tx: &Transaction<'_>, label: &Label) -> Result<()> {
 }
 
 pub fn get_label(conn: &Connection, id: &str) -> Result<Option<Label>> {
-    let mut stmt = conn.prepare(
-        "SELECT id, name, color, description FROM labels WHERE id = ?1",
-    )?;
+    let mut stmt = conn.prepare("SELECT id, name, color, description FROM labels WHERE id = ?1")?;
     let label = stmt
         .query_row(params![id], |row| {
             Ok(Label {
@@ -381,9 +378,8 @@ pub fn get_label(conn: &Connection, id: &str) -> Result<Option<Label>> {
 }
 
 pub fn get_all_labels(conn: &Connection) -> Result<Vec<Label>> {
-    let mut stmt = conn.prepare(
-        "SELECT id, name, color, description FROM labels ORDER BY name ASC"
-    )?;
+    let mut stmt =
+        conn.prepare("SELECT id, name, color, description FROM labels ORDER BY name ASC")?;
     let labels = stmt
         .query_map([], |row| {
             Ok(Label {
@@ -398,15 +394,15 @@ pub fn get_all_labels(conn: &Connection) -> Result<Vec<Label>> {
 }
 
 pub fn delete_label(tx: &Transaction<'_>, id: &str) -> Result<()> {
-     let rows = tx.execute("DELETE FROM labels WHERE id = ?1", params![id])?;
-     if rows == 0 {
-         return Err(crate::error_v2::Error::Io {
+    let rows = tx.execute("DELETE FROM labels WHERE id = ?1", params![id])?;
+    if rows == 0 {
+        return Err(crate::error_v2::Error::Io {
             action: format!("Label not found: {}", id),
             source: std::io::Error::new(std::io::ErrorKind::NotFound, "label not found"),
-         });
-     }
-     Ok(())
- }
+        });
+    }
+    Ok(())
+}
 
 pub fn add_issue_label(tx: &Transaction<'_>, issue_id: &str, label_id: &str) -> Result<()> {
     tx.execute(
@@ -417,18 +413,18 @@ pub fn add_issue_label(tx: &Transaction<'_>, issue_id: &str, label_id: &str) -> 
 }
 
 pub fn remove_issue_label(tx: &Transaction<'_>, issue_id: &str, label_id: &str) -> Result<()> {
-     let rows = tx.execute(
-         "DELETE FROM issue_labels WHERE issue_id = ?1 AND label_id = ?2",
-         params![issue_id, label_id],
-     )?;
-     if rows == 0 {
-         return Err(crate::error_v2::Error::Io {
+    let rows = tx.execute(
+        "DELETE FROM issue_labels WHERE issue_id = ?1 AND label_id = ?2",
+        params![issue_id, label_id],
+    )?;
+    if rows == 0 {
+        return Err(crate::error_v2::Error::Io {
             action: format!("Issue label not found: {} on {}", label_id, issue_id),
             source: std::io::Error::new(std::io::ErrorKind::NotFound, "issue label not found"),
-         });
-     }
-     Ok(())
- }
+        });
+    }
+    Ok(())
+}
 
 pub fn get_issue_labels(conn: &Connection, issue_id: &str) -> Result<Vec<Label>> {
     let mut stmt = conn.prepare(
@@ -438,7 +434,7 @@ pub fn get_issue_labels(conn: &Connection, issue_id: &str) -> Result<Vec<Label>>
         JOIN issue_labels il ON l.id = il.label_id
         WHERE il.issue_id = ?1
         ORDER BY l.name ASC
-        "#
+        "#,
     )?;
     let labels = stmt
         .query_map(params![issue_id], |row| {
@@ -454,9 +450,8 @@ pub fn get_issue_labels(conn: &Connection, issue_id: &str) -> Result<Vec<Label>>
 }
 
 pub fn get_issues_by_label(conn: &Connection, label_id: &str) -> Result<Vec<String>> {
-    let mut stmt = conn.prepare(
-        "SELECT issue_id FROM issue_labels WHERE label_id = ?1 ORDER BY issue_id"
-    )?;
+    let mut stmt =
+        conn.prepare("SELECT issue_id FROM issue_labels WHERE label_id = ?1 ORDER BY issue_id")?;
     let issues = stmt
         .query_map(params![label_id], |row| row.get(0))?
         .collect::<std::result::Result<Vec<_>, _>>()?;
@@ -652,7 +647,7 @@ mod tests {
         create_label(&tx, &label)?;
         add_issue_label(&tx, "issue-1", "label-1")?;
         tx.commit()?;
-        
+
         let tx2 = conn.transaction()?;
         remove_issue_label(&tx2, "issue-1", "label-1")?;
         tx2.commit()?;
@@ -667,10 +662,10 @@ mod tests {
     fn test_remove_nonexistent_issue_label_fails() -> Result<()> {
         let mut conn = setup_test_db()?;
         let tx = conn.transaction()?;
-    
+
         let result = remove_issue_label(&tx, "issue-1", "label-1");
         assert!(result.is_err());
-    
+
         Ok(())
     }
 
@@ -687,7 +682,7 @@ mod tests {
         };
         create_label(&tx, &label)?;
         tx.commit()?;
-        
+
         let tx2 = conn.transaction()?;
         delete_label(&tx2, "label-1")?;
         tx2.commit()?;
@@ -702,10 +697,10 @@ mod tests {
     fn test_delete_nonexistent_label_fails() -> Result<()> {
         let mut conn = setup_test_db()?;
         let tx = conn.transaction()?;
-    
+
         let result = delete_label(&tx, "label-1");
         assert!(result.is_err());
-    
+
         Ok(())
     }
 

@@ -23,9 +23,7 @@ pub enum Error {
          Example:\n  \
          beads init --prefix bd"
     ))]
-    RepoNotFound {
-        searched_paths: String,
-    },
+    RepoNotFound { searched_paths: String },
 
     /// Repository already initialized
     #[snafu(display(
@@ -36,9 +34,7 @@ pub enum Error {
          2. Run: beads init --prefix <prefix>",
         path.display(), path.display()
     ))]
-    RepoAlreadyExists {
-        path: PathBuf,
-    },
+    RepoAlreadyExists { path: PathBuf },
 
     /// I/O error with context
     #[snafu(display("failed to {action}: {source}"))]
@@ -101,9 +97,7 @@ pub enum Error {
          Search issues:\n  \
          beads search <query>"
     ))]
-    IssueNotFound {
-        issue_id: String,
-    },
+    IssueNotFound { issue_id: String },
 
     /// Invalid issue ID format
     #[snafu(display(
@@ -114,10 +108,7 @@ pub enum Error {
          bd-042\n  \
          {prefix}-123"
     ))]
-    InvalidIssueId {
-        provided: String,
-        prefix: String,
-    },
+    InvalidIssueId { provided: String, prefix: String },
 
     /// Circular dependency detected
     #[snafu(display(
@@ -155,9 +146,7 @@ pub enum Error {
          Try:\n  \
          beads sync  # Re-sync from event log"
     ))]
-    BlobNotFound {
-        hash: String,
-    },
+    BlobNotFound { hash: String },
 
     /// Invalid hash format
     #[snafu(display(
@@ -166,9 +155,7 @@ pub enum Error {
          Example:\n  \
          a1b2c3d4e5f6789012345678901234567890123456789012345678901234567890"
     ))]
-    InvalidHash {
-        hash: String,
-    },
+    InvalidHash { hash: String },
 
     /// File system permission error
     #[snafu(display(
@@ -212,13 +199,10 @@ impl Error {
         let field = field.into();
 
         // Try fuzzy match with 0.75 threshold
-        let suggestion = crate::utils::fuzzy::find_best_match(
-            &provided.to_lowercase(),
-            valid_options,
-            0.75,
-        )
-        .map(|matched| format!("Did you mean '{}'?\n\n", matched))
-        .unwrap_or_default();
+        let suggestion =
+            crate::utils::fuzzy::find_best_match(&provided.to_lowercase(), valid_options, 0.75)
+                .map(|matched| format!("Did you mean '{}'?\n\n", matched))
+                .unwrap_or_default();
 
         let valid_values = valid_options.join(", ");
 
@@ -307,10 +291,7 @@ impl Error {
                     source,
                 }
             }
-            _ => Error::Io {
-                action,
-                source,
-            },
+            _ => Error::Io { action, source },
         }
     }
 }
@@ -509,10 +490,7 @@ mod tests {
 
     #[test]
     fn test_permission_denied() {
-        let io_err = std::io::Error::new(
-            std::io::ErrorKind::PermissionDenied,
-            "access denied",
-        );
+        let io_err = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "access denied");
         let err = Error::PermissionDenied {
             action: "write file".to_string(),
             path: PathBuf::from("/protected/file.txt"),
@@ -527,15 +505,8 @@ mod tests {
 
     #[test]
     fn test_from_io_error_permission_denied() {
-        let io_err = std::io::Error::new(
-            std::io::ErrorKind::PermissionDenied,
-            "access denied",
-        );
-        let err = Error::from_io_error(
-            io_err,
-            "read config",
-            PathBuf::from("/etc/beads/config"),
-        );
+        let io_err = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "access denied");
+        let err = Error::from_io_error(io_err, "read config", PathBuf::from("/etc/beads/config"));
 
         match err {
             Error::PermissionDenied { .. } => (),

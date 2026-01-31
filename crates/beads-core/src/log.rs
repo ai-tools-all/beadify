@@ -72,9 +72,9 @@ pub fn apply_all_events(
     let mut offset = 0u64;
 
     for line in reader.lines() {
-         let line = line?;
-         let line_len = line.len() as u64 + 1;
-         offset += line_len;
+        let line = line?;
+        let line_len = line.len() as u64 + 1;
+        offset += line_len;
 
         let trimmed = line.trim();
         if trimmed.is_empty() {
@@ -191,12 +191,12 @@ fn apply_event(tx: &Transaction<'_>, event: &Event) -> Result<()> {
 
             let payload: CreatePayload = serde_json::from_value(event.data.clone())?;
             let status = payload.status.unwrap_or_else(|| "open".to_string());
-            
+
             // Skip issues with status="deleted" - don't insert into SQLite
             if status == "deleted" {
                 return Ok(());
             }
-            
+
             let issue = Issue {
                 id: event.id.clone(),
                 title: payload.title,
@@ -213,7 +213,7 @@ fn apply_event(tx: &Transaction<'_>, event: &Event) -> Result<()> {
         }
         OpKind::Update => {
             let update: IssueUpdate = serde_json::from_value(event.data.clone())?;
-            
+
             // Check if this is a deletion (status="deleted")
             if let Some(ref status) = update.status {
                 if status == "deleted" {
@@ -224,7 +224,7 @@ fn apply_event(tx: &Transaction<'_>, event: &Event) -> Result<()> {
                     return Ok(());
                 }
             }
-            
+
             // Normal update handling
             db::apply_issue_update(tx, &event.id, &update)
         }
