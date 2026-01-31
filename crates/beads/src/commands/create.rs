@@ -1,7 +1,7 @@
 use std::fs;
 
-use anyhow::{anyhow, Result};
-use beads_core::{create_issue_with_data, add_label_to_issue, add_document_to_issue, repo::BeadsRepo};
+use anyhow::Result;
+use beads_core::{create_issue_with_data, add_label_to_issue, add_document_to_issue, repo::BeadsRepo, BeadsError};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -21,15 +21,15 @@ fn default_priority() -> u32 {
 }
 
 pub fn run(repo: BeadsRepo, title: &str, data: &str, depends_on: Vec<String>, labels: Option<String>, docs: Vec<String>) -> Result<()> {
-    if title.trim().is_empty() {
-        return Err(anyhow!("Title is required and cannot be empty"));
-    }
-
-    let issue_data: IssueData = serde_json::from_str(data)
-        .map_err(|e| anyhow!("Invalid JSON data: {}", e))?;
-
-    let data_json: serde_json::Value = serde_json::from_str(data)
-        .map_err(|e| anyhow!("Invalid JSON data: {}", e))?;
+     if title.trim().is_empty() {
+         return Err(BeadsError::missing_field("title").into());
+     }
+ 
+     let issue_data: IssueData = serde_json::from_str(data)
+         .map_err(BeadsError::invalid_json_for_create)?;
+ 
+     let data_json: serde_json::Value = serde_json::from_str(data)
+         .map_err(BeadsError::invalid_json_for_create)?;
 
     let event = create_issue_with_data(&repo, title, &issue_data.kind, issue_data.priority, depends_on, Some(data_json))?;
     

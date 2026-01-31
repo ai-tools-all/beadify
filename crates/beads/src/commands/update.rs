@@ -1,5 +1,5 @@
-use anyhow::{anyhow, Result};
-use beads_core::{repo::BeadsRepo, update_issue, IssueUpdate};
+use anyhow::Result;
+use beads_core::{repo::BeadsRepo, update_issue, BeadsError, IssueUpdate};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -31,7 +31,7 @@ pub fn run(
 
     if let Some(data_str) = data {
         let issue_data: IssueData = serde_json::from_str(&data_str)
-            .map_err(|e| anyhow!("Invalid JSON data: {}", e))?;
+            .map_err(BeadsError::invalid_json_for_update)?;
         update.description = issue_data.description;
         update.design = issue_data.design;
         update.acceptance_criteria = issue_data.acceptance_criteria;
