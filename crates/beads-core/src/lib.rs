@@ -4,6 +4,7 @@ pub mod error;
 pub mod log;
 pub mod model;
 pub mod repo;
+pub mod tz;
 pub mod utils;
 
 pub use error::{Error, Result};

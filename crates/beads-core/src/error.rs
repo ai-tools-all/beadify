@@ -186,6 +186,10 @@ pub enum Error {
         path: PathBuf,
         source: std::io::Error,
     },
+
+    /// Other error with message
+    #[snafu(display("{message}"))]
+    Other { message: String },
 }
 
 impl Error {
