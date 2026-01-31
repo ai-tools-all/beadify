@@ -143,6 +143,62 @@ pub enum Error {
         field: String,
         example_usage: String,
     },
+
+    /// Blob not found in content store
+    #[snafu(display(
+        "blob not found: {hash}\n\n\
+         The content hash '{hash}' does not exist in .beads/blobs/\n\n\
+         This may indicate:\n  \
+         - Corrupted repository\n  \
+         - Missing blob file\n  \
+         - Invalid hash reference\n\n\
+         Try:\n  \
+         beads sync  # Re-sync from event log"
+    ))]
+    BlobNotFound {
+        hash: String,
+    },
+
+    /// Invalid hash format
+    #[snafu(display(
+        "invalid hash format: {hash}\n\n\
+         Expected: 64-character hexadecimal SHA-256 hash\n\n\
+         Example:\n  \
+         a1b2c3d4e5f6789012345678901234567890123456789012345678901234567890"
+    ))]
+    InvalidHash {
+        hash: String,
+    },
+
+    /// File system permission error
+    #[snafu(display(
+        "permission denied: {action}\n\n\
+         Path: {}\n\
+         Error: {source}\n\n\
+         Try:\n  \
+         chmod +rw {}\n  \
+         # Or run with appropriate permissions",
+        path.display(), path.display()
+    ))]
+    PermissionDenied {
+        action: String,
+        path: PathBuf,
+        source: std::io::Error,
+    },
+
+    /// Disk full or quota exceeded
+    #[snafu(display(
+        "disk full: {action}\n\n\
+         Path: {}\n\
+         Error: {source}\n\n\
+         Free up disk space and try again.",
+        path.display()
+    ))]
+    DiskFull {
+        action: String,
+        path: PathBuf,
+        source: std::io::Error,
+    },
 }
 
 impl Error {
@@ -230,6 +286,31 @@ impl Error {
         Error::MissingRequiredField {
             field: field.into(),
             example_usage: example_usage.into(),
+        }
+    }
+
+    /// Create appropriate IO error based on error kind
+    pub fn from_io_error(source: std::io::Error, action: impl Into<String>, path: PathBuf) -> Self {
+        let action = action.into();
+
+        match source.kind() {
+            std::io::ErrorKind::PermissionDenied => Error::PermissionDenied {
+                action,
+                path,
+                source,
+            },
+            std::io::ErrorKind::OutOfMemory | std::io::ErrorKind::WriteZero => {
+                // WriteZero often indicates disk full
+                Error::DiskFull {
+                    action,
+                    path,
+                    source,
+                }
+            }
+            _ => Error::Io {
+                action,
+                source,
+            },
         }
     }
 }
@@ -362,5 +443,64 @@ mod tests {
         assert!(msg.contains("missing required field: title"));
         assert!(msg.contains("cannot be empty"));
         assert!(msg.contains("--kind bug"));
+    }
+
+    #[test]
+    fn test_blob_not_found() {
+        let err = Error::BlobNotFound {
+            hash: "a1b2c3d4".to_string(),
+        };
+        let msg = err.to_string();
+
+        assert!(msg.contains("blob not found: a1b2c3d4"));
+        assert!(msg.contains(".beads/blobs/"));
+        assert!(msg.contains("beads sync"));
+    }
+
+    #[test]
+    fn test_invalid_hash() {
+        let err = Error::InvalidHash {
+            hash: "invalid".to_string(),
+        };
+        let msg = err.to_string();
+
+        assert!(msg.contains("invalid hash format"));
+        assert!(msg.contains("64-character hexadecimal"));
+    }
+
+    #[test]
+    fn test_permission_denied() {
+        let io_err = std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "access denied",
+        );
+        let err = Error::PermissionDenied {
+            action: "write file".to_string(),
+            path: PathBuf::from("/protected/file.txt"),
+            source: io_err,
+        };
+        let msg = err.to_string();
+
+        assert!(msg.contains("permission denied: write file"));
+        assert!(msg.contains("/protected/file.txt"));
+        assert!(msg.contains("chmod"));
+    }
+
+    #[test]
+    fn test_from_io_error_permission_denied() {
+        let io_err = std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "access denied",
+        );
+        let err = Error::from_io_error(
+            io_err,
+            "read config",
+            PathBuf::from("/etc/beads/config"),
+        );
+
+        match err {
+            Error::PermissionDenied { .. } => (),
+            _ => panic!("Expected PermissionDenied variant"),
+        }
     }
 }
