@@ -43,7 +43,7 @@ pub fn run(
     let (json_kind, json_priority, json_desc): (Option<String>, Option<u32>, Option<String>) =
         if let Some(data_str) = &data {
             let parsed = serde_json::from_str::<serde_json::Value>(data_str)
-                .map_err(|e| anyhow!("Invalid JSON data: {}", e))?;
+                .map_err(|e| anyhow!("Invalid JSON data: {}\n\nExpected format: '{{\"description\":\"...\",\"priority\":1,\"kind\":\"bug\"}}'", e))?;
             let kind = parsed.get("kind").and_then(|v| v.as_str()).map(|s| s.to_string());
             let priority = parsed.get("priority").and_then(|v| v.as_u64()).map(|p| p as u32);
             let desc = parsed

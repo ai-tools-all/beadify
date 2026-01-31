@@ -47,7 +47,7 @@ pub fn run(
     // Parse JSON --data if provided
     if let Some(data_str) = data {
         let json = serde_json::from_str::<serde_json::Value>(&data_str)
-            .map_err(|e| anyhow!("Invalid JSON data: {}", e))?;
+            .map_err(|e| anyhow!("Invalid JSON data: {}\n\nExpected format: '{{\"description\":\"...\",\"priority\":1,\"status\":\"closed\"}}'", e))?;
 
         // Apply JSON values only if not already set by flags
         if update.description.is_none() {
@@ -82,7 +82,10 @@ pub fn run(
     let has_label_operations = add_label.is_some() || remove_label.is_some();
 
     if !has_field_updates && !has_label_operations {
-        return Err(anyhow!("No updates specified"));
+        return Err(anyhow!(
+            "No updates specified.\n\nAvailable options:\n  --title <TITLE>\n  --description <DESCRIPTION>\n  --kind <KIND>\n  --priority <PRIORITY>\n  --status <STATUS>\n  --add-label <LABELS>\n  --remove-label <LABELS>\n  --data <JSON>\n\nExample: beads issue update {} --status closed",
+            id
+        ));
     }
 
     // Apply field updates if any

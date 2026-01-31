@@ -12,7 +12,7 @@ pub enum BeadsError {
     UlidDecode(#[from] ulid::DecodeError),
     #[error("beads repository already initialized")]
     AlreadyInitialized,
-    #[error("beads repository not found")]
+    #[error("beads repository not found. Run 'beads init --prefix <prefix>' to create one.")]
     RepoNotFound,
     #[error("missing repository configuration: {0}")]
     MissingConfig(&'static str),
