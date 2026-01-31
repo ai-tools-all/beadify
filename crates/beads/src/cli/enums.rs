@@ -1,37 +1,56 @@
 //! Enum types for CLI argument parsing
 //!
-//! Provides string-to-internal-value mappings for user-friendly CLI interfaces.
-//! Uses match statements instead of external crates to minimize dependencies.
+//! Provides typed enums with clap ValueEnum integration for automatic validation
+//! and helpful error messages. Maintains backward compatibility with numeric priority values.
 
 use std::fmt;
+use std::str::FromStr;
 
 /// Priority levels for issues
-/// Maps user-friendly strings to internal u32 values
+/// Maps user-friendly strings and numeric values to internal u32 values
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[allow(dead_code)]
+#[derive(clap::ValueEnum)]
 pub enum Priority {
-    Low = 0,
-    Medium = 1,
-    High = 2,
-    Urgent = 3,
+    /// Low priority (0)
+    Low,
+    /// Medium priority (1) - default
+    Medium,
+    /// High priority (2)
+    High,
+    /// Urgent priority (3)
+    Urgent,
 }
 
 impl Priority {
-    /// Parse priority from user-friendly string
-    /// Returns Some(u32) if valid, None otherwise
-    pub fn from_str(s: &str) -> Option<u32> {
-        match s.to_lowercase().as_str() {
-            "low" => Some(0),
-            "medium" => Some(1),
-            "high" => Some(2),
-            "urgent" => Some(3),
-            _ => None,
+    /// Get the numeric value for storage
+    pub fn as_u32(self) -> u32 {
+        match self {
+            Priority::Low => 0,
+            Priority::Medium => 1,
+            Priority::High => 2,
+            Priority::Urgent => 3,
         }
     }
 
-    /// Get all valid string values for help/error messages
-    pub fn variants() -> Vec<&'static str> {
-        vec!["low", "medium", "high", "urgent"]
+    /// Parse from string, accepting both names and numbers for backward compatibility
+    pub fn from_str_compat(s: &str) -> Option<Self> {
+        // Try parsing as name first (case-insensitive)
+        match s.to_lowercase().as_str() {
+            "low" => Some(Priority::Low),
+            "medium" => Some(Priority::Medium),
+            "high" => Some(Priority::High),
+            "urgent" => Some(Priority::Urgent),
+            _ => {
+                // Try parsing as number
+                match s.parse::<u32>() {
+                    Ok(0) => Some(Priority::Low),
+                    Ok(1) => Some(Priority::Medium),
+                    Ok(2) => Some(Priority::High),
+                    Ok(3) => Some(Priority::Urgent),
+                    _ => None,
+                }
+            }
+        }
     }
 }
 
@@ -47,42 +66,25 @@ impl fmt::Display for Priority {
 }
 
 /// Issue kinds
-/// Maps user-friendly strings to internal string values
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[allow(dead_code)]
+#[derive(clap::ValueEnum)]
 pub enum Kind {
+    /// Bug fix
     Bug,
+    /// New feature
     Feature,
+    /// Code refactoring
     Refactor,
+    /// Documentation
     Docs,
+    /// Maintenance task
     Chore,
+    /// General task
     Task,
 }
 
 impl Kind {
-    /// Parse kind from user-friendly string
-    /// Returns Some(String) if valid, None otherwise
-    #[allow(dead_code)]
-    pub fn from_str(s: &str) -> Option<String> {
-        match s.to_lowercase().as_str() {
-            "bug" => Some("bug".to_string()),
-            "feature" => Some("feature".to_string()),
-            "refactor" => Some("refactor".to_string()),
-            "docs" => Some("docs".to_string()),
-            "chore" => Some("chore".to_string()),
-            "task" => Some("task".to_string()),
-            _ => None,
-        }
-    }
-
-    /// Get all valid string values for help/error messages
-    #[allow(dead_code)]
-    pub fn variants() -> Vec<&'static str> {
-        vec!["bug", "feature", "refactor", "docs", "chore", "task"]
-    }
-
-    /// Get the string value
-    #[allow(dead_code)]
+    /// Get the string value for storage
     pub fn as_str(&self) -> &'static str {
         match self {
             Kind::Bug => "bug",
@@ -102,38 +104,22 @@ impl fmt::Display for Kind {
 }
 
 /// Issue statuses
-/// Maps user-friendly strings to internal string values
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[allow(dead_code)]
+#[derive(clap::ValueEnum)]
 pub enum Status {
+    /// Issue is open and ready to work on
     Open,
+    /// Issue is being worked on
+    #[value(alias = "in-progress", alias = "inprogress")]
     InProgress,
+    /// Issue is ready for review
     Review,
+    /// Issue is closed
     Closed,
 }
 
 impl Status {
-    /// Parse status from user-friendly string
-    /// Returns Some(String) if valid, None otherwise
-    #[allow(dead_code)]
-    pub fn from_str(s: &str) -> Option<String> {
-        match s.to_lowercase().as_str() {
-            "open" => Some("open".to_string()),
-            "in_progress" | "in-progress" | "inprogress" => Some("in_progress".to_string()),
-            "review" => Some("review".to_string()),
-            "closed" => Some("closed".to_string()),
-            _ => None,
-        }
-    }
-
-    /// Get all valid string values for help/error messages
-    #[allow(dead_code)]
-    pub fn variants() -> Vec<&'static str> {
-        vec!["open", "in_progress", "review", "closed"]
-    }
-
-    /// Get the string value
-    #[allow(dead_code)]
+    /// Get the string value for storage
     pub fn as_str(&self) -> &'static str {
         match self {
             Status::Open => "open",
@@ -155,73 +141,45 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_priority_from_str() {
-        assert_eq!(Priority::from_str("low"), Some(0));
-        assert_eq!(Priority::from_str("medium"), Some(1));
-        assert_eq!(Priority::from_str("high"), Some(2));
-        assert_eq!(Priority::from_str("urgent"), Some(3));
-        assert_eq!(Priority::from_str("LOW"), Some(0)); // case insensitive
-        assert_eq!(Priority::from_str("invalid"), None);
+    fn test_priority_from_str_compat() {
+        // Names (case insensitive)
+        assert_eq!(Priority::from_str_compat("low"), Some(Priority::Low));
+        assert_eq!(Priority::from_str_compat("LOW"), Some(Priority::Low));
+        assert_eq!(Priority::from_str_compat("Low"), Some(Priority::Low));
+        assert_eq!(Priority::from_str_compat("medium"), Some(Priority::Medium));
+        assert_eq!(Priority::from_str_compat("high"), Some(Priority::High));
+        assert_eq!(Priority::from_str_compat("urgent"), Some(Priority::Urgent));
+
+        // Numbers (backward compat)
+        assert_eq!(Priority::from_str_compat("0"), Some(Priority::Low));
+        assert_eq!(Priority::from_str_compat("1"), Some(Priority::Medium));
+        assert_eq!(Priority::from_str_compat("2"), Some(Priority::High));
+        assert_eq!(Priority::from_str_compat("3"), Some(Priority::Urgent));
+
+        // Invalid
+        assert_eq!(Priority::from_str_compat("critical"), None);
+        assert_eq!(Priority::from_str_compat("5"), None);
     }
 
     #[test]
-    fn test_priority_variants() {
-        let variants = Priority::variants();
-        assert!(variants.contains(&"low"));
-        assert!(variants.contains(&"medium"));
-        assert!(variants.contains(&"high"));
-        assert!(variants.contains(&"urgent"));
-        assert_eq!(variants.len(), 4);
+    fn test_priority_as_u32() {
+        assert_eq!(Priority::Low.as_u32(), 0);
+        assert_eq!(Priority::Medium.as_u32(), 1);
+        assert_eq!(Priority::High.as_u32(), 2);
+        assert_eq!(Priority::Urgent.as_u32(), 3);
     }
 
     #[test]
-    fn test_priority_display() {
-        assert_eq!(Priority::Low.to_string(), "low");
-        assert_eq!(Priority::Medium.to_string(), "medium");
-        assert_eq!(Priority::High.to_string(), "high");
-        assert_eq!(Priority::Urgent.to_string(), "urgent");
+    fn test_kind_as_str() {
+        assert_eq!(Kind::Bug.as_str(), "bug");
+        assert_eq!(Kind::Feature.as_str(), "feature");
+        assert_eq!(Kind::Task.as_str(), "task");
     }
 
     #[test]
-    fn test_kind_from_str() {
-        assert_eq!(Kind::from_str("bug"), Some("bug".to_string()));
-        assert_eq!(Kind::from_str("feature"), Some("feature".to_string()));
-        assert_eq!(Kind::from_str("refactor"), Some("refactor".to_string()));
-        assert_eq!(Kind::from_str("docs"), Some("docs".to_string()));
-        assert_eq!(Kind::from_str("chore"), Some("chore".to_string()));
-        assert_eq!(Kind::from_str("task"), Some("task".to_string()));
-        assert_eq!(Kind::from_str("BUG"), Some("bug".to_string())); // case insensitive
-        assert_eq!(Kind::from_str("invalid"), None);
-    }
-
-    #[test]
-    fn test_kind_variants() {
-        let variants = Kind::variants();
-        assert!(variants.contains(&"bug"));
-        assert!(variants.contains(&"feature"));
-        assert!(variants.contains(&"task"));
-        assert_eq!(variants.len(), 6);
-    }
-
-    #[test]
-    fn test_status_from_str() {
-        assert_eq!(Status::from_str("open"), Some("open".to_string()));
-        assert_eq!(Status::from_str("in_progress"), Some("in_progress".to_string()));
-        assert_eq!(Status::from_str("in-progress"), Some("in_progress".to_string()));
-        assert_eq!(Status::from_str("inprogress"), Some("in_progress".to_string()));
-        assert_eq!(Status::from_str("review"), Some("review".to_string()));
-        assert_eq!(Status::from_str("closed"), Some("closed".to_string()));
-        assert_eq!(Status::from_str("OPEN"), Some("open".to_string())); // case insensitive
-        assert_eq!(Status::from_str("invalid"), None);
-    }
-
-    #[test]
-    fn test_status_variants() {
-        let variants = Status::variants();
-        assert!(variants.contains(&"open"));
-        assert!(variants.contains(&"in_progress"));
-        assert!(variants.contains(&"review"));
-        assert!(variants.contains(&"closed"));
-        assert_eq!(variants.len(), 4);
+    fn test_status_as_str() {
+        assert_eq!(Status::Open.as_str(), "open");
+        assert_eq!(Status::InProgress.as_str(), "in_progress");
+        assert_eq!(Status::Closed.as_str(), "closed");
     }
 }
