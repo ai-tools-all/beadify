@@ -10,7 +10,7 @@ use ulid::Ulid;
 
 use crate::{
     db,
-    error_v2::Result,
+    error::Result,
     model::{Event, Issue, IssueUpdate, OpKind},
     repo::BeadsRepo,
 };

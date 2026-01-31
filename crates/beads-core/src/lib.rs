@@ -1,16 +1,12 @@
 pub mod blob;
 pub mod db;
 pub mod error;
-pub mod error_v2;
 pub mod log;
 pub mod model;
 pub mod repo;
 pub mod utils;
 
-pub use error_v2::{Error, Result};
-// Re-export old error for backward compat during migration
-#[allow(unused)]
-pub use error::BeadsError;
+pub use error::{Error, Result};
 pub use model::{Event, Issue, IssueUpdate, Label, OpKind};
 pub use repo::{find_repo, init_repo, BeadsRepo, BEADS_DIR, DB_FILE, EVENTS_FILE};
 

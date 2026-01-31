@@ -4,7 +4,7 @@ use std::io::Write;
 use sha2::{Digest, Sha256};
 
 use crate::{
-    error_v2::{Error, Result},
+    error::{Error, Result},
     repo::{BeadsRepo, BLOBS_DIR},
 };
 

@@ -6,7 +6,7 @@ use rusqlite::Connection;
 
 use crate::{
     db,
-    error_v2::{Error, Result},
+    error::{Error, Result},
 };
 
 pub const BEADS_DIR: &str = ".beads";
