@@ -275,3 +275,125 @@ fn current_actor() -> String {
         .or_else(|_| std::env::var("USERNAME"))
         .unwrap_or_else(|_| "unknown".to_string())
 }
+
+/// Rebuild the SQLite cache from events.jsonl, capturing created_at from first event timestamp
+pub fn rebuild_cache_with_timestamps(repo: &BeadsRepo, conn: &mut Connection) -> Result<()> {
+    use std::collections::HashMap;
+
+    // Clear existing cache
+    let tx = conn.transaction()?;
+    db::clear_state(&tx)?;
+    tx.commit()?;
+
+    // Replay all events
+    let file = match File::open(repo.log_path()) {
+        Ok(file) => file,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(());
+        }
+        Err(err) => return Err(err.into()),
+    };
+
+    let reader = BufReader::new(file);
+
+    // Map to track first event timestamp for each issue
+    let mut first_event_ts: HashMap<String, String> = HashMap::new();
+    let mut events = Vec::new();
+
+    for line in reader.lines() {
+        let line = line?;
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        let event: Event = serde_json::from_str(trimmed)?;
+
+        // Track first event timestamp for each issue
+        if event.op == OpKind::Create {
+            first_event_ts
+                .entry(event.id.clone())
+                .or_insert_with(|| event.ts.clone());
+        }
+
+        events.push(event);
+    }
+
+    // Sort events by event_id for consistent ordering
+    events.sort_by(|a, b| a.event_id.cmp(&b.event_id));
+
+    // Apply events, injecting created_at from first_event_ts
+    let tx = conn.transaction()?;
+    for event in &events {
+        apply_event_with_timestamp(&tx, event, &first_event_ts)?;
+    }
+    tx.commit()?;
+
+    Ok(())
+}
+
+fn apply_event_with_timestamp(
+    tx: &Transaction<'_>,
+    event: &Event,
+    first_event_ts: &std::collections::HashMap<String, String>,
+) -> Result<()> {
+    match event.op {
+        OpKind::Create => {
+            #[derive(Deserialize)]
+            struct CreatePayload {
+                title: String,
+                kind: String,
+                priority: u32,
+                #[serde(default)]
+                status: Option<String>,
+            }
+
+            let payload: CreatePayload = serde_json::from_value(event.data.clone())?;
+            let status = payload.status.unwrap_or_else(|| "open".to_string());
+
+            // Skip issues with status="deleted" - don't insert into SQLite
+            if status == "deleted" {
+                return Ok(());
+            }
+
+            // Get created_at from first event timestamp, fallback to event.ts
+            let created_at = first_event_ts
+                .get(&event.id)
+                .cloned()
+                .unwrap_or_else(|| event.ts.clone());
+
+            let issue = Issue {
+                id: event.id.clone(),
+                title: payload.title,
+                kind: payload.kind,
+                priority: payload.priority,
+                status,
+                created_at,
+                description: None,
+                design: None,
+                acceptance_criteria: None,
+                notes: None,
+                data: Some(event.data.clone()),
+            };
+            db::upsert_issue(tx, &issue)
+        }
+        OpKind::Update => {
+            let update: IssueUpdate = serde_json::from_value(event.data.clone())?;
+
+            // Check if this is a deletion (status="deleted")
+            if let Some(ref status) = update.status {
+                if status == "deleted" {
+                    // Remove issue from SQLite
+                    db::delete_issue(tx, &event.id)?;
+                    // Update text references in remaining issues
+                    db::update_text_references(tx, &event.id)?;
+                    return Ok(());
+                }
+            }
+
+            // Normal update handling
+            db::apply_issue_update(tx, &event.id, &update)
+        }
+        _ => Ok(()),
+    }
+}
