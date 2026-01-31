@@ -1,6 +1,7 @@
 pub mod blob;
 pub mod db;
 pub mod error;
+pub mod error_v2;
 pub mod log;
 pub mod model;
 pub mod repo;
