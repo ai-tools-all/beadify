@@ -7,6 +7,8 @@ use beads_core::repo::find_repo;
 mod cli;
 mod commands;
 
+use cli::enums::{Kind, Priority, Status};
+
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 #[command(propagate_version = true)]
@@ -25,6 +27,7 @@ enum Commands {
     },
     /// Create a new issue (DEPRECATED: use `issue create` instead)
     #[command(
+        hide = true,
         long_about = "Create a new issue.\n\nNOTE: This command is deprecated. Use 'beads issue create' with individual flags instead.\nExample: beads issue create --title \"...\" --priority high"
     )]
     Create {
@@ -42,11 +45,13 @@ enum Commands {
         #[arg(long)]
         doc: Vec<String>,
     },
-    /// Show issue details
+    /// Show issue details (DEPRECATED: use `issue show` instead)
+    #[command(hide = true)]
     Show {
         id: String,
     },
-    /// List all issues from the local cache
+    /// List all issues from the local cache (DEPRECATED: use `issue list` instead)
+    #[command(hide = true)]
     List {
         /// Show all issues including closed (default: only open)
         #[arg(long)]
@@ -70,7 +75,8 @@ enum Commands {
         #[arg(long)]
         labels: bool,
     },
-    /// Update an existing issue
+    /// Update an existing issue (DEPRECATED: use `issue update` instead)
+    #[command(hide = true)]
     Update {
         id: String,
         #[arg(long)]
@@ -146,11 +152,13 @@ enum IssueCommand {
         #[arg(long)]
         description: Option<String>,
 
-        #[arg(long)]
-        kind: Option<String>, // "bug", "feature", etc
+        /// Issue kind: bug, feature, refactor, docs, chore, task
+        #[arg(long, value_enum)]
+        kind: Option<Kind>,
 
-        #[arg(long)]
-        priority: Option<String>, // "low", "medium", "high", "urgent"
+        /// Priority: low, medium, high, urgent (or 0-3)
+        #[arg(long, value_enum)]
+        priority: Option<Priority>,
 
         #[arg(short, long)]
         label: Option<String>, // comma-separated
@@ -175,14 +183,17 @@ enum IssueCommand {
         #[arg(long)]
         description: Option<String>,
 
-        #[arg(long)]
-        kind: Option<String>,
+        /// Issue kind: bug, feature, refactor, docs, chore, task
+        #[arg(long, value_enum)]
+        kind: Option<Kind>,
 
-        #[arg(long)]
-        priority: Option<String>, // "low", "medium", "high", "urgent"
+        /// Priority: low, medium, high, urgent (or 0-3)
+        #[arg(long, value_enum)]
+        priority: Option<Priority>,
 
-        #[arg(long)]
-        status: Option<String>, // "open", "in_progress", "review", "closed"
+        /// Status: open, in-progress, review, closed
+        #[arg(long, value_enum)]
+        status: Option<Status>,
 
         #[arg(long)]
         add_label: Option<String>, // comma-separated labels to add
@@ -199,14 +210,17 @@ enum IssueCommand {
         #[arg(long)]
         all: bool,
 
-        #[arg(long)]
-        status: Option<String>,
+        /// Filter by status: open, in-progress, review, closed
+        #[arg(long, value_enum)]
+        status: Option<Status>,
 
-        #[arg(long)]
-        priority: Option<String>,
+        /// Filter by priority: low, medium, high, urgent (or 0-3)
+        #[arg(long, value_enum)]
+        priority: Option<Priority>,
 
-        #[arg(long)]
-        kind: Option<String>,
+        /// Filter by kind: bug, feature, refactor, docs, chore, task
+        #[arg(long, value_enum)]
+        kind: Option<Kind>,
 
         #[arg(long)]
         label: Option<String>, // filter by labels
@@ -449,8 +463,8 @@ fn main() -> Result<()> {
                     repo.unwrap(),
                     &title,
                     description,
-                    kind,
-                    priority,
+                    kind.map(|k| k.as_str().to_string()),
+                    priority.map(|p| p.as_u32()),
                     label,
                     depends_on,
                     doc,
@@ -474,9 +488,9 @@ fn main() -> Result<()> {
                     &id,
                     title,
                     description,
-                    kind,
-                    priority,
-                    status,
+                    kind.map(|k| k.as_str().to_string()),
+                    priority.map(|p| p.as_u32()),
+                    status.map(|s| s.as_str().to_string()),
                     add_label,
                     remove_label,
                     data,
@@ -492,13 +506,13 @@ fn main() -> Result<()> {
                 json,
                 labels,
             } => {
-                info!(command = "issue list", all, status = status.as_deref(), priority = priority.as_deref(), kind = kind.as_deref());
+                info!(command = "issue list", all, status = ?status, priority = ?priority, kind = ?kind);
                 commands::issue::list::run(
                     repo.unwrap(),
                     all,
-                    status,
-                    priority,
-                    kind,
+                    status.map(|s| s.as_str().to_string()),
+                    priority.map(|p| p.as_u32()),
+                    kind.map(|k| k.as_str().to_string()),
                     label,
                     None, // label_any not in new interface
                     flat,
