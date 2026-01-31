@@ -81,8 +81,10 @@ pub fn run(
 
     // 5. Update description if provided
     if let Some(desc) = final_description {
-        let mut update = IssueUpdate::default();
-        update.description = Some(desc);
+        let update = IssueUpdate {
+            description: Some(desc),
+            ..Default::default()
+        };
         update_issue(&repo, &event.id, update)?;
     }
 

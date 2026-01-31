@@ -23,20 +23,22 @@ pub fn run(
     status: Option<String>,
     data: Option<String>,
 ) -> Result<()> {
-    let mut update = IssueUpdate::default();
-    update.title = title;
-    update.kind = kind;
-    update.priority = priority;
-    update.status = status;
+     let mut update = IssueUpdate {
+         title,
+         kind,
+         priority,
+         status,
+         ..Default::default()
+     };
 
-    if let Some(data_str) = data {
-        let issue_data: IssueData = serde_json::from_str(&data_str)
-            .map_err(BeadsError::invalid_json_for_update)?;
-        update.description = issue_data.description;
-        update.design = issue_data.design;
-        update.acceptance_criteria = issue_data.acceptance_criteria;
-        update.notes = issue_data.notes;
-    }
+     if let Some(data_str) = data {
+         let issue_data: IssueData = serde_json::from_str(&data_str)
+             .map_err(BeadsError::invalid_json_for_update)?;
+         update.description = issue_data.description;
+         update.design = issue_data.design;
+         update.acceptance_criteria = issue_data.acceptance_criteria;
+         update.notes = issue_data.notes;
+     }
 
     let event = update_issue(&repo, id, update)?;
     println!("Updated issue {} via event {}", event.id, event.event_id);

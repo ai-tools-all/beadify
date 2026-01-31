@@ -34,16 +34,14 @@ pub fn run(
     remove_label: Option<String>,
     data: Option<String>,
 ) -> Result<()> {
-    let mut update = IssueUpdate::default();
-
-    // Set direct fields
-    update.title = title;
-    update.kind = kind;
-    update.description = description;
-    update.status = status;
-
-    // Priority is now pre-validated by clap as u32
-    update.priority = priority;
+     let mut update = IssueUpdate {
+         title,
+         kind,
+         description,
+         status,
+         priority,
+         ..Default::default()
+     };
 
     // Parse JSON --data if provided
     if let Some(data_str) = data {
