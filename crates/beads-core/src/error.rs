@@ -43,7 +43,7 @@ impl BeadsError {
     /// Create EmptyUpdate error for issue update
     pub fn empty_update(entity_id: impl Into<String>) -> Self {
         let entity_id = entity_id.into();
-        let fields = vec![
+        let fields = [
             "  --title",
             "  --description",
             "  --kind",
@@ -63,7 +63,7 @@ impl BeadsError {
 
     /// Create InvalidJsonData error for create command
     pub fn invalid_json_for_create(source: serde_json::Error) -> Self {
-        let fields = vec!["  \"description\": <value>,", "  \"priority\": <value>,", "  \"kind\": <value>,"].join("\n");
+        let fields = ["  \"description\": <value>,", "  \"priority\": <value>,", "  \"kind\": <value>,"].join("\n");
 
         Self::InvalidJsonData {
             source,
@@ -74,7 +74,7 @@ impl BeadsError {
 
     /// Create InvalidJsonData error for update command
     pub fn invalid_json_for_update(source: serde_json::Error) -> Self {
-        let fields = vec![
+        let fields = [
             "  \"description\": <value>,",
             "  \"priority\": <value>,",
             "  \"status\": <value>,",

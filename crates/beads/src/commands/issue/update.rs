@@ -1,7 +1,7 @@
 //! Issue update command with natural CLI interface
 //!
 //! Supports both individual flags and JSON --data flag for backward compatibility.
-/// Individual flags override JSON values.
+//! Individual flags override JSON values.
 
 use anyhow::Result;
 use beads_core::{
