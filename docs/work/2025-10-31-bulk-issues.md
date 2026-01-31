@@ -57,28 +57,12 @@ Priority: 2
 
 should show all the metadta / data in kv format. 
 
-
+## labels - structured metadata for filtering querying
+- read the docs/work/2025-10-31-labels.md and crate sub issues for implementing this feature. add dependency between issues as needed. do not create cyclic dependencies.
 
 --------------------
 -- yet to create 
 --------------------
-
-
-create issue - with feature + dependency using beads cli. only create i9ssue. do not implement this yet. 
-
-
-
-for example 
-
-beads dep show bd-041
-Dependencies for bd-041 - Filter closed dependencies from blocker display
-
-Blockers (Issues this depends on):
-  ↳ bd-025 [closed] p2 - Implement beads dep command to show issue dependencies and blockers
-
-
-this should also show the open /closed status of bd-041 
-
 
 
 ## beads dep show 
@@ -94,6 +78,3 @@ this should also show the open /closed status of bd-041
 1. show total count of issues 
 2. do not show `[open]` written.  we already have the square icon. change that to open circle.
 
-
-## labels - structured metadata for filtering querying
-- read the docs/work/2025-10-31-labels.md and crate sub issues for implementing this feature. add dependency between issues as needed. do not create cyclic dependencies.
