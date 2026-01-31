@@ -72,9 +72,9 @@ pub fn apply_all_events(
     let mut offset = 0u64;
 
     for line in reader.lines() {
-        let line = line?;
-        let line_len = line.as_bytes().len() as u64 + 1;
-        offset += line_len;
+         let line = line?;
+         let line_len = line.len() as u64 + 1;
+         offset += line_len;
 
         let trimmed = line.trim();
         if trimmed.is_empty() {
@@ -129,7 +129,7 @@ pub fn apply_incremental(
 
     for line in reader.lines() {
         let line = line?;
-        let line_len = line.as_bytes().len() as u64 + 1;
+        let line_len = line.len() as u64 + 1;
         offset += line_len;
 
         let trimmed = line.trim();

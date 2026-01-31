@@ -4,7 +4,6 @@
 //! and helpful error messages. Maintains backward compatibility with numeric priority values.
 
 use std::fmt;
-use std::str::FromStr;
 
 /// Priority levels for issues
 /// Maps user-friendly strings and numeric values to internal u32 values

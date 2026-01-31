@@ -57,16 +57,18 @@ git commit -m "fix(bd-015): resolve sync driver race condition"
 
 **Note:** This workflow is **mandatory** for issues with `kind=feature`.
 
-### Handling Discovered Issues During Implementation
+## Documentation & Planning
 
-If you discover a bug or improvement while working on an issue:
+### Work Documents
 
-```bash
-# Create a new issue dependent on the current issue
-beads create --title "Fix edge case in sync" --kind bug --priority 2 --depends-on bd-015
+Design docs, planning, and research should go in `docs/work/` with date prefixes:
+- Format: `docs/work/YYYY-MM-DD-<short-name>.md`
+- Include clarifying questions section before implementation
+- Update this AGENTS.md when starting new work areas
 
-# Continue working on the original issue, or switch to the new one
-beads update bd-015 --status in_progress  # continue original work
-# OR
-beads update bd-016 --status in_progress  # switch to new issue
-```
+**Example workflow:**
+1. Create work doc in `docs/work/`
+2. Add guidance section to AGENTS.md if establishing new patterns
+3. Include clarifying questions in the doc
+4. Reference the work doc from related issues/threads
+

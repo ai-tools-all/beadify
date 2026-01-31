@@ -114,7 +114,7 @@ fn ensure_gitignore_entries(path: &Path) -> Result<()> {
         if gitignore_path.exists() {
             let mut file = OpenOptions::new().append(true).open(&gitignore_path)?;
             if !contents.ends_with('\n') {
-                write!(file, "\n")?;
+                writeln!(file)?;
             }
             for entry in entries_to_add {
                 writeln!(file, "{}", entry)?;

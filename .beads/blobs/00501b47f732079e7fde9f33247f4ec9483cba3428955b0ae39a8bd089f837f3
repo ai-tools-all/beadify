@@ -1,0 +1,517 @@
+# Issue Deletion Feature - Implementation Plan
+
+## Overview
+
+Implement a comprehensive issue deletion feature for Beads that supports single/batch deletion, preview mode, force confirmation, cascade deletion of dependents, and text reference cleanup.
+
+## User Requirements
+
+### Command Syntax
+```bash
+# Single issue deletion (preview mode)
+beads delete bd-001
+
+# Force single deletion
+beads delete bd-001 --force
+
+# Batch deletion
+beads delete bd-001 bd-002 bd-003 --force
+
+# Delete from file (one ID per line)
+beads delete --from-file deletions.txt --force
+
+# Cascade deletion (recursively delete dependents)
+beads delete bd-001 --cascade --force
+```
+
+## Architecture Analysis
+
+### Current System Components
+
+1. **Event Log** (`events.jsonl`)
+   - Append-only event stream
+   - Currently supports: Create, Update, Comment, Link, Unlink, Archive
+   - Need to add: **Delete** operation
+
+2. **Database Tables**
+   - `issues`: Main issue storage (id, title, kind, priority, status, data)
+   - `dependencies`: Issue dependencies (with ON DELETE CASCADE)
+   - `issue_labels`: Issue-label mappings (with ON DELETE CASCADE)
+   - `labels`: Label definitions
+   - `_meta`: Metadata storage
+
+3. **Blob Store** (`.beads/blobs/`)
+   - Content-addressable storage for documents
+   - Documents referenced in issue data field: `{"documents": {"name": "hash"}}`
+
+4. **Text References**
+   - Issues can reference other issues in title, description, design, acceptance_criteria, notes
+   - Common patterns: "bd-001", "Fixes bd-123", "Depends on bd-042"
+
+## Implementation Plan
+
+### Phase 1: Core Delete Operation
+
+#### 1.1 Add Delete OpKind
+**File:** `crates/beads-core/src/model.rs`
+
+```rust
+pub enum OpKind {
+    Create,
+    Update,
+    Comment,
+    Link,
+    Unlink,
+    Archive,
+    Delete,  // NEW
+}
+```
+
+#### 1.2 Implement Delete Event Creation
+**File:** `crates/beads-core/src/log.rs`
+
+Add function:
+```rust
+pub fn append_delete_event(
+    repo: &BeadsRepo,
+    conn: &Connection,
+    issue_id: &str,
+    metadata: DeleteMetadata,
+) -> Result<(Event, u64)>
+```
+
+The `DeleteMetadata` should capture:
+- Timestamp
+- Actor
+- Reason (optional)
+- Cascade flag
+- Affected issue IDs (if cascade)
+
+#### 1.3 Implement Event Application
+**File:** `crates/beads-core/src/log.rs`
+
+In `apply_event()`, add:
+```rust
+OpKind::Delete => {
+    let issue_id = &event.id;
+    
+    // 1. Get issue before deletion (for logging)
+    let issue = db::get_issue(tx, issue_id)?;
+    
+    // 2. Delete from database (CASCADE handles dependencies/labels)
+    db::delete_issue(tx, issue_id)?;
+    
+    // 3. Update text references in remaining issues
+    db::update_text_references(tx, issue_id)?;
+}
+```
+
+#### 1.4 Database Delete Function
+**File:** `crates/beads-core/src/db.rs`
+
+Add functions:
+```rust
+pub fn delete_issue(tx: &Transaction<'_>, issue_id: &str) -> Result<()> {
+    // Dependencies and issue_labels automatically deleted by CASCADE
+    tx.execute("DELETE FROM issues WHERE id = ?1", params![issue_id])?;
+    Ok(())
+}
+
+pub fn update_text_references(tx: &Transaction<'_>, deleted_id: &str) -> Result<()> {
+    // Update title, description, design, acceptance_criteria, notes
+    // Replace patterns like "bd-001" with "[deleted:bd-001]"
+    
+    let fields = ["title", "description", "design", "acceptance_criteria", "notes"];
+    let replacement = format!("[deleted:{}]", deleted_id);
+    
+    for field in &fields {
+        let query = format!(
+            "UPDATE issues SET {} = REPLACE({}, ?1, ?2) WHERE {} LIKE ?3",
+            field, field, field
+        );
+        tx.execute(&query, params![deleted_id, replacement, format!("%{}%", deleted_id)])?;
+    }
+    
+    Ok(())
+}
+```
+
+### Phase 2: Core Library API
+
+**File:** `crates/beads-core/src/lib.rs`
+
+Add public functions:
+```rust
+/// Delete a single issue
+pub fn delete_issue(repo: &BeadsRepo, issue_id: &str) -> Result<DeleteResult> {
+    let mut conn = repo.open_db()?;
+    create_schema(&conn)?;
+    
+    // Check if issue exists
+    let issue = get_issue(repo, issue_id)?.ok_or_else(|| 
+        BeadsError::Custom(format!("Issue '{}' not found", issue_id))
+    )?;
+    
+    // Get dependents (issues that depend on this)
+    let dependents = get_dependents(repo, issue_id)?;
+    
+    // Create delete event
+    let metadata = DeleteMetadata {
+        dependents: dependents.clone(),
+        cascade: false,
+        title: issue.title.clone(),
+    };
+    
+    let (event, new_offset) = log::append_delete_event(repo, &conn, issue_id, metadata)?;
+    
+    // Apply deletion in transaction
+    let tx = conn.transaction()?;
+    db::delete_issue(&tx, issue_id)?;
+    db::update_text_references(&tx, issue_id)?;
+    set_meta(&tx, "last_event_id", event.event_id.clone())?;
+    set_meta(&tx, "last_processed_offset", new_offset.to_string())?;
+    tx.commit()?;
+    
+    Ok(DeleteResult {
+        issue_id: issue_id.to_string(),
+        dependents,
+        references_updated: count_reference_updates(&conn, issue_id)?,
+    })
+}
+
+/// Get issues that would be affected by deletion
+pub fn get_delete_impact(repo: &BeadsRepo, issue_id: &str, cascade: bool) -> Result<DeleteImpact> {
+    let issue = get_issue(repo, issue_id)?.ok_or_else(|| 
+        BeadsError::Custom(format!("Issue '{}' not found", issue_id))
+    )?;
+    
+    let dependents = get_dependents(repo, issue_id)?;
+    let references = find_text_references(repo, issue_id)?;
+    
+    let mut all_issues = vec![issue_id.to_string()];
+    
+    if cascade {
+        all_issues.extend(get_all_dependents_recursive(repo, issue_id)?);
+    }
+    
+    Ok(DeleteImpact {
+        issues_to_delete: all_issues,
+        blocked_issues: dependents,
+        text_references: references,
+    })
+}
+
+/// Cascade delete: recursively delete all dependents
+pub fn delete_issue_cascade(repo: &BeadsRepo, issue_id: &str) -> Result<Vec<DeleteResult>> {
+    let mut results = Vec::new();
+    
+    // Get all dependents recursively
+    let all_dependents = get_all_dependents_recursive(repo, issue_id)?;
+    
+    // Delete in reverse dependency order (leaves first)
+    for dependent_id in all_dependents.iter().rev() {
+        results.push(delete_issue(repo, dependent_id)?);
+    }
+    
+    // Finally delete the root issue
+    results.push(delete_issue(repo, issue_id)?);
+    
+    Ok(results)
+}
+
+/// Batch delete multiple issues
+pub fn delete_issues_batch(repo: &BeadsRepo, issue_ids: Vec<String>) -> Result<Vec<DeleteResult>> {
+    let mut results = Vec::new();
+    
+    for issue_id in issue_ids {
+        match delete_issue(repo, &issue_id) {
+            Ok(result) => results.push(result),
+            Err(e) => {
+                eprintln!("Failed to delete {}: {}", issue_id, e);
+            }
+        }
+    }
+    
+    Ok(results)
+}
+```
+
+Supporting types:
+```rust
+pub struct DeleteResult {
+    pub issue_id: String,
+    pub dependents: Vec<String>,
+    pub references_updated: usize,
+}
+
+pub struct DeleteImpact {
+    pub issues_to_delete: Vec<String>,
+    pub blocked_issues: Vec<String>,
+    pub text_references: Vec<String>,
+}
+```
+
+### Phase 3: CLI Command
+
+**File:** `crates/beads/src/commands/delete.rs` (new)
+
+```rust
+use std::fs;
+use std::io::{self, Write};
+
+use anyhow::{Context, Result};
+use beads_core::{delete_issue, delete_issue_cascade, delete_issues_batch, get_delete_impact, repo::BeadsRepo};
+
+pub fn run(
+    repo: BeadsRepo,
+    issue_ids: Vec<String>,
+    force: bool,
+    cascade: bool,
+    from_file: Option<String>,
+) -> Result<()> {
+    // Collect all issue IDs
+    let mut all_ids = issue_ids;
+    
+    if let Some(file_path) = from_file {
+        let content = fs::read_to_string(&file_path)
+            .with_context(|| format!("Failed to read file: {}", file_path))?;
+        
+        for line in content.lines() {
+            let trimmed = line.trim();
+            if !trimmed.is_empty() && !trimmed.starts_with('#') {
+                all_ids.push(trimmed.to_string());
+            }
+        }
+    }
+    
+    if all_ids.is_empty() {
+        anyhow::bail!("No issue IDs provided");
+    }
+    
+    // Preview mode: show what would be deleted
+    if !force {
+        println!("Preview mode - the following would be deleted:");
+        println!();
+        
+        for issue_id in &all_ids {
+            match get_delete_impact(&repo, issue_id, cascade) {
+                Ok(impact) => {
+                    println!("Issue: {}", issue_id);
+                    println!("  Would delete: {} issue(s)", impact.issues_to_delete.len());
+                    if !impact.blocked_issues.is_empty() {
+                        println!("  ⚠️  {} issue(s) depend on this", impact.blocked_issues.len());
+                    }
+                    if !impact.text_references.is_empty() {
+                        println!("  📝 {} text reference(s) would be updated", impact.text_references.len());
+                    }
+                    println!();
+                }
+                Err(e) => {
+                    eprintln!("Error analyzing {}: {}", issue_id, e);
+                }
+            }
+        }
+        
+        println!("Run with --force to confirm deletion");
+        return Ok(());
+    }
+    
+    // Confirm before cascade deletion
+    if cascade && all_ids.len() > 0 {
+        print!("⚠️  Cascade deletion will delete dependents recursively. Continue? [y/N]: ");
+        io::stdout().flush()?;
+        
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+        
+        if !input.trim().eq_ignore_ascii_case("y") {
+            println!("Cancelled");
+            return Ok(());
+        }
+    }
+    
+    // Execute deletions
+    for issue_id in &all_ids {
+        if cascade {
+            match delete_issue_cascade(&repo, issue_id) {
+                Ok(results) => {
+                    println!("✓ Deleted {} (cascade: {} issues)", issue_id, results.len());
+                    for result in results {
+                        if !result.dependents.is_empty() {
+                            println!("  - {} had {} dependent(s)", result.issue_id, result.dependents.len());
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("✗ Failed to delete {}: {}", issue_id, e);
+                }
+            }
+        } else {
+            match delete_issue(&repo, issue_id) {
+                Ok(result) => {
+                    println!("✓ Deleted {}", issue_id);
+                    if !result.dependents.is_empty() {
+                        println!("  ⚠️  {} issue(s) depended on this", result.dependents.len());
+                    }
+                    if result.references_updated > 0 {
+                        println!("  📝 Updated {} text reference(s)", result.references_updated);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("✗ Failed to delete {}: {}", issue_id, e);
+                }
+            }
+        }
+    }
+    
+    Ok(())
+}
+```
+
+**File:** `crates/beads/src/main.rs`
+
+Add to Commands enum:
+```rust
+/// Delete one or more issues
+Delete {
+    /// Issue IDs to delete
+    issue_ids: Vec<String>,
+    /// Confirm deletion without preview
+    #[arg(long)]
+    force: bool,
+    /// Recursively delete dependent issues
+    #[arg(long)]
+    cascade: bool,
+    /// Read issue IDs from file (one per line)
+    #[arg(long)]
+    from_file: Option<String>,
+},
+```
+
+Add to match statement:
+```rust
+Commands::Delete { issue_ids, force, cascade, from_file } => {
+    info!(command = "delete", ids = issue_ids.len(), force, cascade);
+    commands::delete::run(repo.unwrap(), issue_ids, force, cascade, from_file)?;
+}
+```
+
+## Edge Cases and Considerations
+
+### 1. Document Cleanup
+**Question:** Should we delete blobs when an issue is deleted?
+
+**Recommendation:** NO - keep blobs for potential recovery and deduplication.
+- Blobs are content-addressable and deduplicated
+- Multiple issues might reference the same blob
+- Could add `beads gc` command later for orphaned blob cleanup
+
+### 2. Dependency Cycles
+If there are circular dependencies, cascade deletion needs careful handling.
+
+**Solution:** Use topological sort or breadth-first traversal to determine deletion order.
+
+### 3. Label Cleanup
+**Question:** Should we delete labels that have no remaining issues?
+
+**Recommendation:** NO - labels are defined entities, keep them.
+- Labels can be reused
+- Could add `beads label prune` command later
+
+### 4. Undo Deletion
+**Question:** Can we recover deleted issues?
+
+**Current:** NO - deletion is permanent in the event log.
+
+**Future:** Could implement soft delete with a "deleted" status or archive instead.
+
+### 5. Merge Conflicts
+Delete events in the JSONL could create merge conflicts.
+
+**Current:** Merge driver handles append-only log
+**Impact:** Delete event is just another line - should merge cleanly
+**Edge case:** Two people delete the same issue - both events recorded, last one is no-op
+
+### 6. Text Reference Patterns
+Need to handle various reference formats:
+- `bd-001`
+- `Fixes bd-001`
+- `Depends on bd-001, bd-002`
+- `See bd-001 for details`
+
+**Solution:** Use LIKE queries with wildcards: `WHERE field LIKE '%bd-001%'`
+
+### 7. Sync After Delete
+After deletion, `beads sync` will:
+1. Pull remote changes
+2. Replay events including Delete
+3. Push local changes
+
+Remote deletions will be applied locally.
+
+## Testing Strategy
+
+### Unit Tests
+1. `delete_issue()` - single deletion
+2. `delete_issue_cascade()` - recursive deletion
+3. `delete_issues_batch()` - multiple deletions
+4. `update_text_references()` - reference replacement
+5. Event application - Delete OpKind handling
+
+### Integration Tests
+1. Delete issue with dependencies
+2. Delete issue with dependents (should warn)
+3. Cascade delete with multiple levels
+4. Batch delete from file
+5. Preview mode vs force mode
+6. Text reference updates across multiple fields
+7. Merge conflict resolution with delete events
+
+### Edge Case Tests
+1. Delete non-existent issue
+2. Delete already deleted issue (idempotent)
+3. Cascade delete with circular dependencies
+4. Delete issue with documents attached
+5. Delete issue with labels
+
+## Implementation Checklist
+
+- [ ] Add Delete OpKind to model.rs
+- [ ] Implement append_delete_event() in log.rs
+- [ ] Implement Delete event application in log.rs
+- [ ] Add delete_issue() to db.rs
+- [ ] Add update_text_references() to db.rs
+- [ ] Add helper functions for finding references
+- [ ] Implement get_delete_impact() in lib.rs
+- [ ] Implement delete_issue() in lib.rs
+- [ ] Implement delete_issue_cascade() in lib.rs
+- [ ] Implement delete_issues_batch() in lib.rs
+- [ ] Create delete.rs command
+- [ ] Add Delete command to main.rs
+- [ ] Write unit tests
+- [ ] Write integration tests
+- [ ] Update README.md with delete examples
+- [ ] Test preview mode
+- [ ] Test force mode
+- [ ] Test cascade deletion
+- [ ] Test batch deletion from file
+- [ ] Verify merge conflict handling
+
+## Security and Safety
+
+1. **Preview by default:** Require --force for actual deletion
+2. **Cascade confirmation:** Extra prompt for cascade deletions
+3. **Clear feedback:** Show what will be deleted and impact
+4. **Error handling:** Continue batch deletion on individual failures
+5. **Event log:** All deletions permanently recorded
+6. **No data loss:** Blobs remain for potential recovery
+
+## Future Enhancements
+
+1. **Soft delete:** Add "deleted" status instead of hard delete
+2. **Undo:** Ability to restore deleted issues
+3. **Garbage collection:** Clean up orphaned blobs
+4. **Label pruning:** Remove unused labels
+5. **Archive instead:** Move to archive state
+6. **Delete confirmation:** Interactive selection mode
+7. **Dry-run output:** JSON format for programmatic use

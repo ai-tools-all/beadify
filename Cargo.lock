@@ -96,7 +96,7 @@ checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
 name = "beads"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "beads-core",
@@ -109,7 +109,7 @@ dependencies = [
 
 [[package]]
 name = "beads-core"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -124,11 +124,11 @@ dependencies = [
 
 [[package]]
 name = "beads-merge-driver"
-version = "0.3.0"
+version = "0.3.1"
 
 [[package]]
 name = "beads-tracing"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "tracing",
  "tracing-subscriber",
