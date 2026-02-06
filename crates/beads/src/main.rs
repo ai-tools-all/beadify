@@ -193,11 +193,13 @@ enum IssueCommand {
         #[arg(long, value_enum)]
         status: Option<Status>,
 
-        #[arg(long)]
-        add_label: Option<String>, // comma-separated labels to add
+        /// Labels to add (repeatable, comma-separated)
+        #[arg(short = 'l', long, num_args = 1..)]
+        add_label: Vec<String>,
 
-        #[arg(long)]
-        remove_label: Option<String>, // comma-separated labels to remove
+        /// Labels to remove (repeatable, comma-separated)
+        #[arg(short = 'r', long, num_args = 1..)]
+        remove_label: Vec<String>,
 
         #[arg(long)]
         data: Option<String>, // JSON escape hatch

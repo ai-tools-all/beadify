@@ -16,8 +16,8 @@ pub struct UpdateParams {
     pub kind: Option<String>,
     pub priority: Option<u32>,
     pub status: Option<String>,
-    pub add_label: Option<String>,
-    pub remove_label: Option<String>,
+    pub add_label: Vec<String>,
+    pub remove_label: Vec<String>,
     pub data: Option<String>,
 }
 
@@ -91,39 +91,31 @@ pub fn run(repo: BeadsRepo, params: UpdateParams) -> Result<()> {
 
     // Check if we have any updates to apply
     let has_field_updates = !update.is_empty();
-    let has_label_operations = add_label.is_some() || remove_label.is_some();
+    let has_label_operations = !add_label.is_empty() || !remove_label.is_empty();
 
     if !has_field_updates && !has_label_operations {
         return Err(Error::empty_issue_update(id).into());
     }
 
-    // Apply field updates if any
     if has_field_updates {
         let event = update_issue(&repo, &id, update)?;
         println!("Updated issue {} via event {}", id, event.event_id);
     }
 
-    // Handle label operations
-    if let Some(labels_str) = add_label {
-        let label_names: Vec<&str> = labels_str.split(',').map(|s| s.trim()).collect();
-        for label_name in label_names {
-            if !label_name.is_empty() {
-                match add_label_to_issue(&repo, &id, label_name) {
-                    Ok(_) => println!("Added label '{}'", label_name),
-                    Err(e) => eprintln!("Failed to add label '{}': {}", label_name, e),
-                }
+    for raw in &add_label {
+        for label_name in raw.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()) {
+            match add_label_to_issue(&repo, &id, label_name) {
+                Ok(_) => println!("Added label '{}'", label_name),
+                Err(e) => eprintln!("Failed to add label '{}': {}", label_name, e),
             }
         }
     }
 
-    if let Some(labels_str) = remove_label {
-        let label_names: Vec<&str> = labels_str.split(',').map(|s| s.trim()).collect();
-        for label_name in label_names {
-            if !label_name.is_empty() {
-                match remove_label_from_issue(&repo, &id, label_name) {
-                    Ok(_) => println!("Removed label '{}'", label_name),
-                    Err(e) => eprintln!("Failed to remove label '{}': {}", label_name, e),
-                }
+    for raw in &remove_label {
+        for label_name in raw.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()) {
+            match remove_label_from_issue(&repo, &id, label_name) {
+                Ok(_) => println!("Removed label '{}'", label_name),
+                Err(e) => eprintln!("Failed to remove label '{}': {}", label_name, e),
             }
         }
     }
